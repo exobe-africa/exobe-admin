@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -8,9 +8,8 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
-import { UserPlus, Mail, Phone, Calendar, Edit, Trash2, Eye, Search, Filter, FileText, CheckCircle, XCircle, Save } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, Edit, Filter, Save } from 'lucide-react';
 import { getApolloClient } from '../../lib/apollo/client';
-import { ADMIN_USERS_QUERY } from '../../lib/api/users';
 import {
   SELLER_APPLICATIONS_QUERY,
   SERVICE_PROVIDER_APPLICATIONS_QUERY,
@@ -20,17 +19,6 @@ import {
 } from '../../lib/api/applications';
 import { useToast } from '../../context/ToastContext';
 import Accordion from '../../components/common/Accordion';
-
-type Role = 'ADMIN' | 'SUPER_ADMIN' | 'CUSTOMER' | 'RETAILER' | 'WHOLESALER' | 'SERVICE_PROVIDER';
-type UserRow = {
-  id: string;
-  name?: string | null;
-  email: string;
-  phone?: string | null;
-  role: Role;
-  is_active: boolean;
-  created_at: string;
-};
 
 type ApplicationType = 'seller' | 'service-provider';
 
@@ -57,173 +45,44 @@ type ServiceProviderApplication = {
   created_at: string;
 };
 
-export default function UsersPage() {
-  const [activeTab, setActiveTab] = useState<'users' | 'applications'>('users');
-  const [users, setUsers] = useState<UserRow[]>([]);
+export default function ApplicationsPage() {
+  const [activeTab, setActiveTab] = useState<ApplicationType>('seller');
   const [applications, setApplications] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState<Role | ''>('');
-  const [filterStatus, setFilterStatus] = useState<'Active' | 'Inactive' | ''>('');
-  const [applicationFilterStatus, setApplicationFilterStatus] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('');
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [editedApplication, setEditedApplication] = useState<any>(null);
   const { showSuccess, showError } = useToast();
 
-  // Form state
-  const [formData, setFormData] = useState<{ name: string; email: string; phone: string; role: Role }>({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'CUSTOMER',
-  });
-
-  const columns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'phone', label: 'Phone', sortable: true },
-    {
-      key: 'role',
-      label: 'Role',
-      render: (user: UserRow) => (
-        <Badge variant={user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'info' : 'neutral'}>
-          {user.role}
-        </Badge>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (user: UserRow) => (
-        <Badge variant={user.is_active ? 'success' : 'warning'}>
-          {user.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    { key: 'created_at', label: 'Joined', sortable: true },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (user: any) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleViewUser(user)}
-            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-            title="View"
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            onClick={() => handleEditUser(user)}
-            className="p-2 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors"
-            title="Edit"
-          >
-            <Edit size={16} />
-          </button>
-          <button
-            onClick={() => handleDeleteUser(user.id)}
-            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-            title="Delete"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
-  const handleViewUser = (user: any) => {
-    setSelectedUser(user);
-    setIsViewModalOpen(true);
-  };
-
-  const handleEditUser = (user: any) => {
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role as Role,
-    });
-    setSelectedUser(user);
-    setIsAddModalOpen(true);
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== userId));
-    }
-  };
-
-  const handleSubmit = () => {
-    if (selectedUser) {
-      // Update existing user
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, name: formData.name, email: formData.email, phone: formData.phone, role: formData.role } : u));
-    } else {
-      // Add new user
-      const newUser: UserRow = {
-        id: String(users.length + 1),
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-      setUsers([...users, newUser]);
-    }
-    setIsAddModalOpen(false);
-    setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
-    setSelectedUser(null);
-  };
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = !filterRole || user.role === filterRole;
-    const matchesStatus = !filterStatus || (filterStatus === 'Active' ? user.is_active : !user.is_active);
-    return matchesSearch && matchesRole && matchesStatus;
-  });
-
-  const fetchUsers = async () => {
-    const client = getApolloClient();
-    const { data } = await client.query({
-      query: ADMIN_USERS_QUERY,
-      variables: {
-        query: searchQuery || null,
-        role: filterRole || null,
-        status: filterStatus === '' ? null : filterStatus === 'Active',
-      },
-      fetchPolicy: 'network-only',
-    });
-    setUsers(data?.searchUsers ?? []);
-  };
-
   const fetchApplications = async () => {
     const client = getApolloClient();
-    const query = activeTab === 'applications' ? SELLER_APPLICATIONS_QUERY : SERVICE_PROVIDER_APPLICATIONS_QUERY;
+    const query = activeTab === 'seller' ? SELLER_APPLICATIONS_QUERY : SERVICE_PROVIDER_APPLICATIONS_QUERY;
 
     try {
       const { data } = await client.query({
         query,
         variables: {
-          status: applicationFilterStatus || undefined,
+          status: filterStatus || undefined,
           take: 50,
           skip: 0,
         },
         fetchPolicy: 'network-only',
       });
 
-      setApplications(data[activeTab === 'applications' ? 'sellerApplications' : 'serviceProviderApplications'] || []);
+      setApplications(data[activeTab === 'seller' ? 'sellerApplications' : 'serviceProviderApplications'] || []);
     } catch (error) {
       showError('Failed to load applications');
       console.error('Error fetching applications:', error);
     }
   };
 
-  const handleApproveApplication = async (applicationId: string) => {
+  useEffect(() => {
+    fetchApplications();
+  }, [activeTab, filterStatus]);
+
+  const handleApprove = async (applicationId: string) => {
     if (!confirm('Are you sure you want to approve this application? This will create a vendor account.')) {
       return;
     }
@@ -243,7 +102,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleRejectApplication = async (applicationId: string) => {
+  const handleReject = async (applicationId: string) => {
     if (!confirm('Are you sure you want to reject this application?')) {
       return;
     }
@@ -337,314 +196,182 @@ export default function UsersPage() {
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'users') {
-      // Debounce search slightly for better UX
-      const t = setTimeout(fetchUsers, 250);
-      return () => clearTimeout(t);
-    } else {
-      fetchApplications();
-    }
-  }, [activeTab, searchQuery, filterRole, filterStatus, applicationFilterStatus]);
+  const getColumns = () => [
+    { key: 'first_name', label: 'First Name', sortable: true },
+    { key: 'last_name', label: 'Last Name', sortable: true },
+    { key: 'email', label: 'Email', sortable: true, cellClassName: 'max-w-[220px] truncate' },
+    { key: 'phone', label: 'Phone', sortable: true },
+    {
+      key: activeTab === 'seller' ? 'business_name' : 'primary_service',
+      label: activeTab === 'seller' ? 'Business' : 'Service',
+      sortable: true,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (app: any) => (
+        <Badge variant={
+          app.status === 'APPROVED' ? 'success' :
+          app.status === 'REJECTED' ? 'danger' :
+          app.status === 'PENDING' ? 'warning' :
+          'neutral'
+        }>
+          {app.status}
+        </Badge>
+      ),
+    },
+    { key: 'created_at', label: 'Applied', sortable: true, cellClassName: 'whitespace-nowrap' },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (app: any) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleViewApplication(app)}
+            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+            title="View Details"
+          >
+            <Eye size={16} />
+          </button>
+          {app.status === 'PENDING' && (
+            <>
+              <button
+                onClick={() => handleApprove(app.id)}
+                className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+                title="Approve"
+              >
+                <CheckCircle size={16} />
+              </button>
+              <button
+                onClick={() => handleReject(app.id)}
+                className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+                title="Reject"
+              >
+                <XCircle size={16} />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const filteredApplications = applications.filter(app => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (app.first_name + ' ' + app.last_name).toLowerCase().includes(query) ||
+      app.email.toLowerCase().includes(query) ||
+      (activeTab === 'seller' ? app.business_name : app.primary_service).toLowerCase().includes(query)
+    );
+  });
+
+  const stats = {
+    total: applications.length,
+    pending: applications.filter(app => app.status === 'PENDING').length,
+    approved: applications.filter(app => app.status === 'APPROVED').length,
+    rejected: applications.filter(app => app.status === 'REJECTED').length,
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">User Management</h1>
-            <p className="text-gray-600">Manage all platform users and their permissions</p>
-          </div>
-          {activeTab === 'users' && (
-            <Button icon={UserPlus} onClick={() => setIsAddModalOpen(true)}>
-              Add User
-            </Button>
-          )}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Applications</h1>
+          <p className="text-gray-600">Review and manage vendor applications</p>
         </div>
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm p-1 border border-gray-100 inline-flex">
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => setActiveTab('seller')}
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              activeTab === 'users'
+              activeTab === 'seller'
                 ? 'bg-[#C8102E] text-white'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Users
+            Seller Applications
           </button>
           <button
-            onClick={() => setActiveTab('applications')}
+            onClick={() => setActiveTab('service-provider')}
             className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-              activeTab === 'applications'
+              activeTab === 'service-provider'
                 ? 'bg-[#C8102E] text-white'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Applications
+            Service Provider Applications
           </button>
         </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <Input
-                placeholder={activeTab === 'users' ? "Search by name or email..." : "Search applications..."}
+                placeholder={`Search ${activeTab === 'seller' ? 'sellers' : 'service providers'}...`}
                 value={searchQuery}
                 onChange={setSearchQuery}
                 icon={Search}
                 fullWidth
               />
             </div>
-            {activeTab === 'users' ? (
-              <>
-                <Select
-                  placeholder="Filter by role"
-                  value={filterRole}
-                  onChange={(v) => setFilterRole(v as Role | '')}
-                  options={[
-                    { value: '', label: 'All Roles' },
-                    { value: 'ADMIN', label: 'ADMIN' },
-                    { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN' },
-                    { value: 'CUSTOMER', label: 'CUSTOMER' },
-                    { value: 'RETAILER', label: 'RETAILER' },
-                    { value: 'WHOLESALER', label: 'WHOLESALER' },
-                    { value: 'SERVICE_PROVIDER', label: 'SERVICE_PROVIDER' },
-                  ]}
-                  fullWidth
-                />
-                <Select
-                  placeholder="Filter by status"
-                  value={filterStatus}
-                  onChange={(v) => setFilterStatus(v as 'Active' | 'Inactive' | '')}
-                  options={[
-                    { value: '', label: 'All Statuses' },
-                    { value: 'Active', label: 'Active' },
-                    { value: 'Inactive', label: 'Inactive' },
-                  ]}
-                  fullWidth
-                />
-              </>
-            ) : (
-              <Select
-                placeholder="Filter by status"
-                value={applicationFilterStatus}
-                onChange={setApplicationFilterStatus}
-                options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'PENDING', label: 'Pending' },
-                  { value: 'APPROVED', label: 'Approved' },
-                  { value: 'REJECTED', label: 'Rejected' },
-                ]}
-                fullWidth
-              />
-            )}
+            <Select
+              placeholder="Filter by status"
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'APPROVED', label: 'Approved' },
+                { value: 'REJECTED', label: 'Rejected' },
+              ]}
+              fullWidth
+            />
           </div>
         </div>
 
         {/* Stats */}
-        {activeTab === 'users' ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Active Users</p>
-              <p className="text-2xl font-bold text-green-600">
-                {users.filter(u => u.is_active).length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Vendors</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {users.filter(u => u.role === 'RETAILER' || u.role === 'WHOLESALER' || u.role === 'SERVICE_PROVIDER').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Customers</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {users.filter(u => u.role === 'CUSTOMER').length}
-              </p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <p className="text-sm text-gray-600 mb-1">Total Applications</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Total Applications</p>
-              <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {applications.filter(app => app.status === 'PENDING').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Approved</p>
-              <p className="text-2xl font-bold text-green-600">
-                {applications.filter(app => app.status === 'APPROVED').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Rejected</p>
-              <p className="text-2xl font-bold text-red-600">
-                {applications.filter(app => app.status === 'REJECTED').length}
-              </p>
-            </div>
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <p className="text-sm text-gray-600 mb-1">Pending</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
           </div>
-        )}
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <p className="text-sm text-gray-600 mb-1">Approved</p>
+            <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <p className="text-sm text-gray-600 mb-1">Rejected</p>
+            <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+          </div>
+        </div>
 
-        {/* Users Table */}
-        {activeTab === 'users' ? (
-          <DataTable
-            columns={columns}
-            data={filteredUsers}
-            keyExtractor={(user) => user.id}
-            emptyMessage="No users found"
-          />
-        ) : (
-          <DataTable
-            columns={[
-              { key: 'first_name', label: 'First Name', sortable: true },
-              { key: 'last_name', label: 'Last Name', sortable: true },
-              { key: 'email', label: 'Email', sortable: true },
-              { key: 'phone', label: 'Phone', sortable: true },
-              {
-                key: 'business_name',
-                label: 'Business',
-                sortable: true,
-                render: (app) => app.business_name || app.primary_service,
-              },
-              {
-                key: 'status',
-                label: 'Status',
-                render: (app) => (
-                  <Badge variant={
-                    app.status === 'APPROVED' ? 'success' :
-                    app.status === 'REJECTED' ? 'danger' :
-                    'warning'
-                  }>
-                    {app.status}
-                  </Badge>
-                ),
-              },
-              { key: 'created_at', label: 'Applied', sortable: true },
-              {
-                key: 'actions',
-                label: 'Actions',
-                render: (app) => (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleViewApplication(app)}
-                      className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    {app.status === 'PENDING' && (
-                      <>
-                        <button
-                          onClick={() => handleApproveApplication(app.id)}
-                          className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                          title="Approve"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleRejectApplication(app.id)}
-                          className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                          title="Reject"
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-            data={applications.filter(app => {
-              if (!searchQuery) return true;
-              const query = searchQuery.toLowerCase();
-              return (
-                (app.first_name + ' ' + app.last_name).toLowerCase().includes(query) ||
-                app.email.toLowerCase().includes(query) ||
-                (app.business_name || app.primary_service).toLowerCase().includes(query)
-              );
-            })}
-            keyExtractor={(app) => app.id}
-            emptyMessage="No applications found"
-          />
-        )}
-
-        {/* Add/Edit User Modal */}
-        <Modal
-          isOpen={isAddModalOpen}
-          onClose={() => {
-            setIsAddModalOpen(false);
-            setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
-            setSelectedUser(null);
-          }}
-          title={selectedUser ? 'Edit User' : 'Add New User'}
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
-                {selectedUser ? 'Update User' : 'Add User'}
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <Input
-              label="Full Name"
-              placeholder="Enter full name"
-              value={formData.name}
-              onChange={(value) => setFormData({ ...formData, name: value })}
-              required
-              fullWidth
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="Enter email address"
-              value={formData.email}
-              onChange={(value) => setFormData({ ...formData, email: value })}
-              icon={Mail}
-              required
-              fullWidth
-            />
-            <Input
-              label="Phone"
-              type="tel"
-              placeholder="Enter phone number"
-              value={formData.phone}
-              onChange={(value) => setFormData({ ...formData, phone: value })}
-              icon={Phone}
-              required
-              fullWidth
-            />
-          </div>
-        </Modal>
+        {/* Applications Table */}
+        <DataTable
+          columns={getColumns()}
+          data={filteredApplications}
+          keyExtractor={(app) => app.id}
+          emptyMessage={`No ${activeTab === 'seller' ? 'seller' : 'service provider'} applications found`}
+        />
 
         {/* View/Edit Application Modal */}
         <Modal
           isOpen={isViewModalOpen}
           onClose={() => {
             setIsViewModalOpen(false);
-            setSelectedUser(null);
             setSelectedApplication(null);
             setIsEditingApplication(false);
           }}
-          title={selectedApplication ? "Application Details" : "User Details"}
+          title="Application Details"
           size="2xl"
-          footer={selectedApplication && (
+          footer={selectedApplication && activeTab === 'seller' && (
             <div className="flex items-center justify-between w-full">
               <div className="flex gap-3">
                 {selectedApplication.status === 'PENDING' && !isEditingApplication && (
@@ -652,7 +379,7 @@ export default function UsersPage() {
                     <Button
                       icon={CheckCircle}
                       onClick={() => {
-                        handleApproveApplication(selectedApplication.id);
+                        handleApprove(selectedApplication.id);
                         setIsViewModalOpen(false);
                       }}
                     >
@@ -662,7 +389,7 @@ export default function UsersPage() {
                       variant="danger"
                       icon={XCircle}
                       onClick={() => {
-                        handleRejectApplication(selectedApplication.id);
+                        handleReject(selectedApplication.id);
                         setIsViewModalOpen(false);
                       }}
                     >
@@ -692,47 +419,7 @@ export default function UsersPage() {
             </div>
           )}
         >
-          {selectedUser && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-[#C8102E] flex items-center justify-center text-white text-3xl font-bold">
-                  {selectedUser.name?.charAt(0) || 'U'}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedUser.name || `${selectedUser.first_name} ${selectedUser.last_name}`}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={selectedUser.role === 'ADMIN' || selectedUser.role === 'SUPER_ADMIN' ? 'info' : 'neutral'}>
-                      {selectedUser.role}
-                    </Badge>
-                    <Badge variant={selectedUser.is_active ? 'success' : 'warning'}>
-                      {selectedUser.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Email</p>
-                  <p className="font-medium text-gray-900">{selectedUser.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Phone</p>
-                  <p className="font-medium text-gray-900">{selectedUser.phone || 'Not provided'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Joined</p>
-                  <p className="font-medium text-gray-900">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Role</p>
-                  <p className="font-medium text-gray-900">{selectedUser.role}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {selectedApplication && editedApplication && (
+          {selectedApplication && activeTab === 'seller' && editedApplication && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               {/* Header with Status */}
               <div className="flex items-center justify-between pb-4 border-b">
@@ -1072,6 +759,77 @@ export default function UsersPage() {
                   </p>
                 </div>
               </Accordion>
+            </div>
+          )}
+
+          {/* Service Provider View (Simple) */}
+          {selectedApplication && activeTab === 'service-provider' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">First Name</p>
+                  <p className="font-medium text-gray-900">{selectedApplication.first_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Last Name</p>
+                  <p className="font-medium text-gray-900">{selectedApplication.last_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Email</p>
+                  <p className="font-medium text-gray-900">{selectedApplication.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Phone</p>
+                  <p className="font-medium text-gray-900">{selectedApplication.phone || 'Not provided'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-600 mb-1">Primary Service</p>
+                  <p className="font-medium text-gray-900">{selectedApplication.primary_service}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Status</p>
+                  <Badge variant={
+                    selectedApplication.status === 'APPROVED' ? 'success' :
+                    selectedApplication.status === 'REJECTED' ? 'danger' :
+                    'warning'
+                  }>
+                    {selectedApplication.status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Applied</p>
+                  <p className="font-medium text-gray-900">
+                    {new Date(selectedApplication.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              {selectedApplication.status === 'PENDING' && (
+                <div className="border-t pt-4">
+                  <h4 className="font-bold text-gray-900 mb-3">Actions</h4>
+                  <div className="flex gap-3">
+                    <Button
+                      icon={CheckCircle}
+                      onClick={() => {
+                        handleApprove(selectedApplication.id);
+                        setIsViewModalOpen(false);
+                      }}
+                    >
+                      Approve Application
+                    </Button>
+                    <Button
+                      variant="danger"
+                      icon={XCircle}
+                      onClick={() => {
+                        handleReject(selectedApplication.id);
+                        setIsViewModalOpen(false);
+                      }}
+                    >
+                      Reject Application
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Modal>

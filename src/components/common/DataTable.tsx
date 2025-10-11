@@ -8,6 +8,7 @@ interface Column<T> {
   label: string;
   render?: (item: T) => React.ReactNode;
   sortable?: boolean;
+  cellClassName?: string; // optional class to control wrapping/width
 }
 
 interface DataTableProps<T> {
@@ -96,7 +97,11 @@ export default function DataTable<T>({
               paginatedData.map((item) => (
                 <tr key={keyExtractor(item)} className="hover:bg-gray-50 transition-colors">
                   {columns.map((column) => (
-                    <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td
+                      key={column.key}
+                      className={`px-6 py-4 text-sm text-gray-900 ${column.cellClassName ?? 'whitespace-nowrap'}`}
+                      title={column.render ? undefined : String((item as any)[column.key] ?? '')}
+                    >
                       {column.render ? column.render(item) : (item as any)[column.key]}
                     </td>
                   ))}

@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { label: 'Analytics', icon: <BarChart3 size={20} />, href: '/analytics' },
   { label: 'Reports', icon: <FileText size={20} />, href: '/reports' },
   { label: 'Messages', icon: <MessagesSquare size={20} />, href: '/messages' },
+  { label: 'Applications', icon: <FileText size={20} />, href: '/applications' },
   { label: 'Notifications', icon: <Bell size={20} />, href: '/notifications' },
   { label: 'Settings', icon: <Settings size={20} />, href: '/settings' },
 ];
