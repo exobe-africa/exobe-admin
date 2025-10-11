@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -9,32 +9,35 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
 import { UserPlus, Mail, Phone, Calendar, Edit, Trash2, Eye, Search, Filter } from 'lucide-react';
+import { getApolloClient } from '../../lib/apollo/client';
+import { ADMIN_USERS_QUERY } from '../../lib/api/users';
 
-// Mock data
-const mockUsers = [
-  { id: '1', name: 'John Doe', email: 'john@example.com', phone: '+27 82 123 4567', role: 'Customer', status: 'Active', joinDate: '2025-01-15', orders: 12, spent: 'R 15,432' },
-  { id: '2', name: 'Jane Smith', email: 'jane@example.com', phone: '+27 83 234 5678', role: 'Customer', status: 'Active', joinDate: '2025-02-20', orders: 8, spent: 'R 9,876' },
-  { id: '3', name: 'Mike Johnson', email: 'mike@example.com', phone: '+27 84 345 6789', role: 'Vendor', status: 'Active', joinDate: '2025-03-10', orders: 145, spent: 'R 87,654' },
-  { id: '4', name: 'Sarah Williams', email: 'sarah@example.com', phone: '+27 85 456 7890', role: 'Customer', status: 'Inactive', joinDate: '2024-12-05', orders: 3, spent: 'R 2,345' },
-  { id: '5', name: 'Tom Brown', email: 'tom@example.com', phone: '+27 86 567 8901', role: 'Customer', status: 'Active', joinDate: '2025-04-18', orders: 23, spent: 'R 34,567' },
-  { id: '6', name: 'Emily Davis', email: 'emily@example.com', phone: '+27 87 678 9012', role: 'Vendor', status: 'Active', joinDate: '2025-05-22', orders: 89, spent: 'R 56,789' },
-];
+type Role = 'ADMIN' | 'SUPER_ADMIN' | 'CUSTOMER' | 'RETAILER' | 'WHOLESALER' | 'SERVICE_PROVIDER';
+type UserRow = {
+  id: string;
+  name?: string | null;
+  email: string;
+  phone?: string | null;
+  role: Role;
+  is_active: boolean;
+  created_at: string;
+};
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterRole, setFilterRole] = useState<Role | ''>('');
+  const [filterStatus, setFilterStatus] = useState<'Active' | 'Inactive' | ''>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{ name: string; email: string; phone: string; role: Role }>({
     name: '',
     email: '',
     phone: '',
-    role: 'Customer',
+    role: 'CUSTOMER',
   });
 
   const columns = [
@@ -44,8 +47,8 @@ export default function UsersPage() {
     {
       key: 'role',
       label: 'Role',
-      render: (user: any) => (
-        <Badge variant={user.role === 'Vendor' ? 'info' : 'neutral'}>
+      render: (user: UserRow) => (
+        <Badge variant={user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'info' : 'neutral'}>
           {user.role}
         </Badge>
       ),
@@ -53,14 +56,13 @@ export default function UsersPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (user: any) => (
-        <Badge variant={user.status === 'Active' ? 'success' : 'warning'}>
-          {user.status}
+      render: (user: UserRow) => (
+        <Badge variant={user.is_active ? 'success' : 'warning'}>
+          {user.is_active ? 'Active' : 'Inactive'}
         </Badge>
       ),
     },
-    { key: 'orders', label: 'Orders', sortable: true },
-    { key: 'spent', label: 'Total Spent', sortable: true },
+    { key: 'created_at', label: 'Joined', sortable: true },
     {
       key: 'actions',
       label: 'Actions',
@@ -102,7 +104,7 @@ export default function UsersPage() {
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      role: user.role as Role,
     });
     setSelectedUser(user);
     setIsAddModalOpen(true);
@@ -117,31 +119,52 @@ export default function UsersPage() {
   const handleSubmit = () => {
     if (selectedUser) {
       // Update existing user
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...formData } : u));
+      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, name: formData.name, email: formData.email, phone: formData.phone, role: formData.role } : u));
     } else {
       // Add new user
-      const newUser = {
+      const newUser: UserRow = {
         id: String(users.length + 1),
-        ...formData,
-        status: 'Active',
-        joinDate: new Date().toISOString().split('T')[0],
-        orders: 0,
-        spent: 'R 0',
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+        is_active: true,
+        created_at: new Date().toISOString(),
       };
       setUsers([...users, newUser]);
     }
     setIsAddModalOpen(false);
-    setFormData({ name: '', email: '', phone: '', role: 'Customer' });
+    setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
     setSelectedUser(null);
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = !filterRole || user.role === filterRole;
-    const matchesStatus = !filterStatus || user.status === filterStatus;
+    const matchesStatus = !filterStatus || (filterStatus === 'Active' ? user.is_active : !user.is_active);
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  const fetchUsers = async () => {
+    const client = getApolloClient();
+    const { data } = await client.query({
+      query: ADMIN_USERS_QUERY,
+      variables: {
+        query: searchQuery || null,
+        role: filterRole || null,
+        status: filterStatus === '' ? null : filterStatus === 'Active',
+      },
+      fetchPolicy: 'network-only',
+    });
+    setUsers(data?.searchUsers ?? []);
+  };
+
+  useEffect(() => {
+    // Debounce search slightly for better UX
+    const t = setTimeout(fetchUsers, 250);
+    return () => clearTimeout(t);
+  }, [searchQuery, filterRole, filterStatus]);
 
   return (
     <DashboardLayout>
@@ -172,18 +195,22 @@ export default function UsersPage() {
             <Select
               placeholder="Filter by role"
               value={filterRole}
-              onChange={setFilterRole}
+              onChange={(v) => setFilterRole(v as Role | '')}
               options={[
                 { value: '', label: 'All Roles' },
-                { value: 'Customer', label: 'Customer' },
-                { value: 'Vendor', label: 'Vendor' },
+                { value: 'ADMIN', label: 'ADMIN' },
+                { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN' },
+                { value: 'CUSTOMER', label: 'CUSTOMER' },
+                { value: 'RETAILER', label: 'RETAILER' },
+                { value: 'WHOLESALER', label: 'WHOLESALER' },
+                { value: 'SERVICE_PROVIDER', label: 'SERVICE_PROVIDER' },
               ]}
               fullWidth
             />
             <Select
               placeholder="Filter by status"
               value={filterStatus}
-              onChange={setFilterStatus}
+              onChange={(v) => setFilterStatus(v as 'Active' | 'Inactive' | '')}
               options={[
                 { value: '', label: 'All Statuses' },
                 { value: 'Active', label: 'Active' },
@@ -203,19 +230,19 @@ export default function UsersPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Active Users</p>
             <p className="text-2xl font-bold text-green-600">
-              {users.filter(u => u.status === 'Active').length}
+              {users.filter(u => u.is_active).length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Vendors</p>
             <p className="text-2xl font-bold text-blue-600">
-              {users.filter(u => u.role === 'Vendor').length}
+              {users.filter(u => u.role === 'RETAILER' || u.role === 'WHOLESALER' || u.role === 'SERVICE_PROVIDER').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Customers</p>
             <p className="text-2xl font-bold text-purple-600">
-              {users.filter(u => u.role === 'Customer').length}
+              {users.filter(u => u.role === 'CUSTOMER').length}
             </p>
           </div>
         </div>
@@ -233,7 +260,7 @@ export default function UsersPage() {
           isOpen={isAddModalOpen}
           onClose={() => {
             setIsAddModalOpen(false);
-            setFormData({ name: '', email: '', phone: '', role: 'Customer' });
+            setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
             setSelectedUser(null);
           }}
           title={selectedUser ? 'Edit User' : 'Add New User'}
@@ -280,10 +307,14 @@ export default function UsersPage() {
             <Select
               label="Role"
               value={formData.role}
-              onChange={(value) => setFormData({ ...formData, role: value })}
+              onChange={(value) => setFormData({ ...formData, role: value as Role })}
               options={[
-                { value: 'Customer', label: 'Customer' },
-                { value: 'Vendor', label: 'Vendor' },
+                { value: 'CUSTOMER', label: 'CUSTOMER' },
+                { value: 'RETAILER', label: 'RETAILER' },
+                { value: 'WHOLESALER', label: 'WHOLESALER' },
+                { value: 'SERVICE_PROVIDER', label: 'SERVICE_PROVIDER' },
+                { value: 'ADMIN', label: 'ADMIN' },
+                { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN' },
               ]}
               required
               fullWidth

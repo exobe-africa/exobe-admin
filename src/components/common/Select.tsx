@@ -41,11 +41,11 @@ export default function Select({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         required={required}
-        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all ${
+        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all text-gray-900 ${
           error ? 'border-red-500' : 'border-gray-300'
         } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
       >
-        {placeholder && <option value="">{placeholder}</option>}
+        {placeholder && <option value="" className="text-gray-500">{placeholder}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
