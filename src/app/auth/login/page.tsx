@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useAdmin } from '../../../context/AdminContext';
+import { LOGIN_MUTATION } from '../../../lib/api/auth';
+import { getApolloClient } from '../../../lib/apollo/client';
 import { useToast } from '../../../context/ToastContext';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
@@ -27,33 +29,39 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (formData.email && formData.password) {
-        // Mock admin user with token
-        const adminUser = {
-          id: '1',
-          name: 'Admin User',
-          email: formData.email,
-          role: 'SUPER_ADMIN' as const,
-          permissions: ['all'],
-          token: 'mock-admin-token-' + Date.now(), // In production, this comes from API
-        };
-        
-        login(adminUser);
-        showSuccess('Welcome back! Login successful.');
-        router.push('/');
-      } else {
-        showError('Please fill in all fields');
+    try {
+      const client = getApolloClient();
+      const { data } = await client.mutate({
+        mutation: LOGIN_MUTATION,
+        variables: { input: { email: formData.email, password: formData.password } },
+      });
+      const user = data?.login;
+      if (!user) throw new Error('Invalid response');
+      if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+        showError('You do not have permission to access the admin dashboard.');
+        setIsLoading(false);
+        return;
       }
+      login({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        permissions: ['all'],
+        token: user.token,
+      });
+      showSuccess('Welcome back! Login successful.');
+      router.push('/');
+    } catch (err) {
+      showError('Invalid email or password');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-4">
             <Image 
@@ -69,7 +77,6 @@ export default function LoginPage() {
           <p className="text-gray-600">Sign in to access the dashboard</p>
         </div>
 
-        {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>

@@ -11,14 +11,16 @@ export function middleware(request: NextRequest) {
   // Check if user is authenticated (check for admin token in cookies or localStorage)
   // For now, we'll use a simple check - in production, verify JWT token
   const isAuthenticated = request.cookies.get('exobeAdminToken')?.value;
+  const role = request.cookies.get('exobeAdminRole')?.value as string | undefined;
+  const hasAdminAccess = role === 'ADMIN' || role === 'SUPER_ADMIN';
   
   // Redirect to login if trying to access protected route while not authenticated
-  if (!isPublicRoute && !isAuthenticated && pathname !== '/auth/login') {
+  if (!isPublicRoute && (!isAuthenticated || !hasAdminAccess) && pathname !== '/auth/login') {
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
   
   // Redirect to dashboard if trying to access auth pages while authenticated
-  if (isPublicRoute && isAuthenticated && pathname !== '/') {
+  if (isPublicRoute && isAuthenticated && hasAdminAccess && pathname !== '/') {
     return NextResponse.redirect(new URL('/', request.url));
   }
   

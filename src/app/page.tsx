@@ -1,6 +1,7 @@
 "use client";
 
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { useAdmin } from '../context/AdminContext';
 import StatCard from '../components/common/StatCard';
 import DataTable from '../components/common/DataTable';
 import { 
@@ -30,6 +31,7 @@ const topProducts = [
 ];
 
 export default function HomePage() {
+  const { admin } = useAdmin();
   const orderColumns = [
     { key: 'id', label: 'Order ID', sortable: true },
     { key: 'customer', label: 'Customer', sortable: true },
@@ -64,7 +66,12 @@ export default function HomePage() {
         {/* Page Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
-          <p className="text-gray-600">Welcome back! Here's what's happening with your platform today.</p>
+          <p className="text-gray-600">Welcome back{admin?.name ? `, ${admin.name}` : ''}! Here's what's happening with your platform today.</p>
+          {admin && (
+            <div className="mt-3 text-sm text-gray-700">
+              <span className="font-medium">Signed in as:</span> {admin.name} · {admin.email} · <span className="uppercase">{admin.role}</span>
+            </div>
+          )}
         </div>
 
         {/* Stats Grid */}

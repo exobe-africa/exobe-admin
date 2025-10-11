@@ -53,6 +53,9 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       if (adminData.token) {
         document.cookie = `exobeAdminToken=${adminData.token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
       }
+      if (adminData.role) {
+        document.cookie = `exobeAdminRole=${adminData.role}; path=/; max-age=${60 * 60 * 24 * 7}`;
+      }
     }
   };
 
@@ -65,6 +68,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       
       // Clear authentication cookie
       document.cookie = 'exobeAdminToken=; path=/; max-age=0';
+      document.cookie = 'exobeAdminRole=; path=/; max-age=0';
       
       // Redirect to login
       window.location.href = '/auth/login';
