@@ -6,7 +6,8 @@ import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useToast } from '../../../context/ToastContext';
-import { Mail, ArrowLeft, Shield, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -73,18 +74,25 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#C8102E] mb-4">
-            <Shield className="text-white" size={32} />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Logo and Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center mb-4">
+              <Image 
+                src="/exobe-logo.png" 
+                alt="eXobe Logo" 
+                width={200} 
+                height={80}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
+            <p className="text-gray-600">
+              No worries! Enter your email and we'll send you reset instructions.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
-          <p className="text-gray-600">
-            No worries! Enter your email and we'll send you reset instructions.
-          </p>
-        </div>
 
         {/* Forgot Password Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">

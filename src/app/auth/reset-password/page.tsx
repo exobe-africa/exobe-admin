@@ -6,7 +6,8 @@ import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useToast } from '../../../context/ToastContext';
-import { Lock, Eye, EyeOff, Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -140,8 +141,15 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#C8102E] mb-4">
-            <Shield className="text-white" size={32} />
+          <div className="inline-flex items-center justify-center mb-4">
+            <Image 
+              src="/exobe-logo.png" 
+              alt="eXobe Logo" 
+              width={200} 
+              height={80}
+              className="object-contain"
+              priority
+            />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Reset Your Password</h1>
           <p className="text-gray-600">

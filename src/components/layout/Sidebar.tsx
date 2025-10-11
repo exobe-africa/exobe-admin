@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   LayoutDashboard, 
   Users, 
@@ -54,16 +55,50 @@ export default function Sidebar() {
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
-          {!isSidebarCollapsed && (
-            <h1 className="text-xl font-bold text-[#C8102E]">eXobe Admin</h1>
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center">
+              <Image 
+                src="/exobe-logo.png" 
+                alt="eXobe Logo" 
+                width={120} 
+                height={48}
+                className="object-contain brightness-0 invert"
+                priority
+              />
+            </div>
+          ) : (
+            <div className="w-full flex justify-center">
+              <Image 
+                src="/exobe-logo.png" 
+                alt="eXobe Logo" 
+                width={40} 
+                height={40}
+                className="object-contain brightness-0 invert"
+                priority
+              />
+            </div>
           )}
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-[#2a2a2a] transition-colors"
-          >
-            {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
+          {!isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="p-2 rounded-lg hover:bg-[#2a2a2a] transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
         </div>
+
+        {/* Collapse button when sidebar is collapsed */}
+        {isSidebarCollapsed && (
+          <div className="px-3 py-2">
+            <button
+              onClick={toggleSidebar}
+              className="w-full p-2 rounded-lg hover:bg-[#2a2a2a] transition-colors flex justify-center"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-6">

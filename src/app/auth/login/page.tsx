@@ -7,7 +7,7 @@ import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useAdmin } from '../../../context/AdminContext';
 import { useToast } from '../../../context/ToastContext';
-import { Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginPage() {
@@ -55,10 +55,17 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#C8102E] mb-4">
-            <Shield className="text-white" size={32} />
+          <div className="inline-flex items-center justify-center mb-4">
+            <Image 
+              src="/exobe-logo.png" 
+              alt="eXobe Logo" 
+              width={200} 
+              height={80}
+              className="object-contain"
+              priority
+            />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">eXobe Admin</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
           <p className="text-gray-600">Sign in to access the dashboard</p>
         </div>
 
