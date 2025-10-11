@@ -2,26 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
-import Modal from '../../components/common/Modal';
-import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
-import Badge from '../../components/common/Badge';
-import { UserPlus, Mail, Phone, Calendar, Edit, Trash2, Eye, Search, Filter, FileText, CheckCircle, XCircle, Save } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { getApolloClient } from '../../lib/apollo/client';
 import { ADMIN_USERS_QUERY } from '../../lib/api/users';
 import {
   SELLER_APPLICATIONS_QUERY,
-  SERVICE_PROVIDER_APPLICATIONS_QUERY,
   APPROVE_SELLER_APPLICATION,
   REJECT_SELLER_APPLICATION,
   UPDATE_SELLER_APPLICATION
 } from '../../lib/api/applications';
 import { useToast } from '../../context/ToastContext';
-import Accordion from '../../components/common/Accordion';
+import {
+  UsersList,
+  ApplicationsList,
+  UsersStats,
+  ApplicationsStats,
+  UsersFilters,
+  ApplicationsFilters,
+  AddEditUserModal,
+  ViewUserModal,
+  ApplicationDetailsModal,
+} from '../../components/pages/users';
 
 type Role = 'ADMIN' | 'SUPER_ADMIN' | 'CUSTOMER' | 'RETAILER' | 'WHOLESALER' | 'SERVICE_PROVIDER';
+
 type UserRow = {
   id: string;
   name?: string | null;
@@ -29,31 +34,6 @@ type UserRow = {
   phone?: string | null;
   role: Role;
   is_active: boolean;
-  created_at: string;
-};
-
-type ApplicationType = 'seller' | 'service-provider';
-
-type SellerApplication = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  business_name: string;
-  business_summary: string;
-  status: string;
-  created_at: string;
-};
-
-type ServiceProviderApplication = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  primary_service: string;
-  status: string;
   created_at: string;
 };
 
@@ -73,67 +53,12 @@ export default function UsersPage() {
   const [editedApplication, setEditedApplication] = useState<any>(null);
   const { showSuccess, showError } = useToast();
 
-  // Form state
   const [formData, setFormData] = useState<{ name: string; email: string; phone: string; role: Role }>({
     name: '',
     email: '',
     phone: '',
     role: 'CUSTOMER',
   });
-
-  const columns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'phone', label: 'Phone', sortable: true },
-    {
-      key: 'role',
-      label: 'Role',
-      render: (user: UserRow) => (
-        <Badge variant={user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'info' : 'neutral'}>
-          {user.role}
-        </Badge>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (user: UserRow) => (
-        <Badge variant={user.is_active ? 'success' : 'warning'}>
-          {user.is_active ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    { key: 'created_at', label: 'Joined', sortable: true },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (user: any) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleViewUser(user)}
-            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-            title="View"
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            onClick={() => handleEditUser(user)}
-            className="p-2 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors"
-            title="Edit"
-          >
-            <Edit size={16} />
-          </button>
-          <button
-            onClick={() => handleDeleteUser(user.id)}
-            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-            title="Delete"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      ),
-    },
-  ];
 
   const handleViewUser = (user: any) => {
     setSelectedUser(user);
@@ -159,10 +84,8 @@ export default function UsersPage() {
 
   const handleSubmit = () => {
     if (selectedUser) {
-      // Update existing user
       setUsers(users.map(u => u.id === selectedUser.id ? { ...u, name: formData.name, email: formData.email, phone: formData.phone, role: formData.role } : u));
     } else {
-      // Add new user
       const newUser: UserRow = {
         id: String(users.length + 1),
         name: formData.name,
@@ -177,6 +100,10 @@ export default function UsersPage() {
     setIsAddModalOpen(false);
     setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
     setSelectedUser(null);
+  };
+
+  const handleFormChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
   };
 
   const filteredUsers = users.filter(user => {
@@ -203,7 +130,7 @@ export default function UsersPage() {
 
   const fetchApplications = async () => {
     const client = getApolloClient();
-    const query = activeTab === 'applications' ? SELLER_APPLICATIONS_QUERY : SERVICE_PROVIDER_APPLICATIONS_QUERY;
+    const query = SELLER_APPLICATIONS_QUERY;
 
     try {
       const { data } = await client.query({
@@ -216,7 +143,7 @@ export default function UsersPage() {
         fetchPolicy: 'network-only',
       });
 
-      setApplications(data[activeTab === 'applications' ? 'sellerApplications' : 'serviceProviderApplications'] || []);
+      setApplications(data?.sellerApplications || []);
     } catch (error) {
       showError('Failed to load applications');
       console.error('Error fetching applications:', error);
@@ -279,6 +206,10 @@ export default function UsersPage() {
     setIsEditingApplication(false);
   };
 
+  const handleApplicationFieldChange = (field: string, value: any) => {
+    setEditedApplication({...editedApplication, [field]: value});
+  };
+
   const handleSaveApplication = async () => {
     if (!editedApplication || !selectedApplication) return;
 
@@ -337,9 +268,15 @@ export default function UsersPage() {
     }
   };
 
+  const handleCloseViewModal = () => {
+    setIsViewModalOpen(false);
+    setSelectedUser(null);
+    setSelectedApplication(null);
+    setIsEditingApplication(false);
+  };
+
   useEffect(() => {
     if (activeTab === 'users') {
-      // Debounce search slightly for better UX
       const t = setTimeout(fetchUsers, 250);
       return () => clearTimeout(t);
     } else {
@@ -388,695 +325,87 @@ export default function UsersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                placeholder={activeTab === 'users' ? "Search by name or email..." : "Search applications..."}
-                value={searchQuery}
-                onChange={setSearchQuery}
-                icon={Search}
-                fullWidth
-              />
-            </div>
-            {activeTab === 'users' ? (
-              <>
-                <Select
-                  placeholder="Filter by role"
-                  value={filterRole}
-                  onChange={(v) => setFilterRole(v as Role | '')}
-                  options={[
-                    { value: '', label: 'All Roles' },
-                    { value: 'ADMIN', label: 'ADMIN' },
-                    { value: 'SUPER_ADMIN', label: 'SUPER_ADMIN' },
-                    { value: 'CUSTOMER', label: 'CUSTOMER' },
-                    { value: 'RETAILER', label: 'RETAILER' },
-                    { value: 'WHOLESALER', label: 'WHOLESALER' },
-                    { value: 'SERVICE_PROVIDER', label: 'SERVICE_PROVIDER' },
-                  ]}
-                  fullWidth
-                />
-                <Select
-                  placeholder="Filter by status"
-                  value={filterStatus}
-                  onChange={(v) => setFilterStatus(v as 'Active' | 'Inactive' | '')}
-                  options={[
-                    { value: '', label: 'All Statuses' },
-                    { value: 'Active', label: 'Active' },
-                    { value: 'Inactive', label: 'Inactive' },
-                  ]}
-                  fullWidth
-                />
-              </>
-            ) : (
-              <Select
-                placeholder="Filter by status"
-                value={applicationFilterStatus}
-                onChange={setApplicationFilterStatus}
-                options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'PENDING', label: 'Pending' },
-                  { value: 'APPROVED', label: 'Approved' },
-                  { value: 'REJECTED', label: 'Rejected' },
-                ]}
-                fullWidth
-              />
-            )}
-          </div>
-        </div>
+        {activeTab === 'users' ? (
+          <UsersFilters
+            searchQuery={searchQuery}
+            filterRole={filterRole}
+            filterStatus={filterStatus}
+            onSearchChange={setSearchQuery}
+            onRoleChange={setFilterRole}
+            onStatusChange={setFilterStatus}
+          />
+        ) : (
+          <ApplicationsFilters
+            searchQuery={searchQuery}
+            filterStatus={applicationFilterStatus}
+            onSearchChange={setSearchQuery}
+            onStatusChange={setApplicationFilterStatus}
+          />
+        )}
 
         {/* Stats */}
         {activeTab === 'users' ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Total Users</p>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Active Users</p>
-              <p className="text-2xl font-bold text-green-600">
-                {users.filter(u => u.is_active).length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Vendors</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {users.filter(u => u.role === 'RETAILER' || u.role === 'WHOLESALER' || u.role === 'SERVICE_PROVIDER').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Customers</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {users.filter(u => u.role === 'CUSTOMER').length}
-              </p>
-            </div>
-          </div>
+          <UsersStats users={users} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Total Applications</p>
-              <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {applications.filter(app => app.status === 'PENDING').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Approved</p>
-              <p className="text-2xl font-bold text-green-600">
-                {applications.filter(app => app.status === 'APPROVED').length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-sm text-gray-600 mb-1">Rejected</p>
-              <p className="text-2xl font-bold text-red-600">
-                {applications.filter(app => app.status === 'REJECTED').length}
-              </p>
-            </div>
-          </div>
+          <ApplicationsStats applications={applications} />
         )}
 
-        {/* Users Table */}
+        {/* Table */}
         {activeTab === 'users' ? (
-          <DataTable
-            columns={columns}
-            data={filteredUsers}
-            keyExtractor={(user) => user.id}
-            emptyMessage="No users found"
+          <UsersList
+            users={filteredUsers}
+            onView={handleViewUser}
+            onEdit={handleEditUser}
+            onDelete={handleDeleteUser}
           />
         ) : (
-          <DataTable
-            columns={[
-              { key: 'first_name', label: 'First Name', sortable: true },
-              { key: 'last_name', label: 'Last Name', sortable: true },
-              { key: 'email', label: 'Email', sortable: true },
-              { key: 'phone', label: 'Phone', sortable: true },
-              {
-                key: 'business_name',
-                label: 'Business',
-                sortable: true,
-                render: (app) => app.business_name || app.primary_service,
-              },
-              {
-                key: 'status',
-                label: 'Status',
-                render: (app) => (
-                  <Badge variant={
-                    app.status === 'APPROVED' ? 'success' :
-                    app.status === 'REJECTED' ? 'danger' :
-                    'warning'
-                  }>
-                    {app.status}
-                  </Badge>
-                ),
-              },
-              { key: 'created_at', label: 'Applied', sortable: true },
-              {
-                key: 'actions',
-                label: 'Actions',
-                render: (app) => (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleViewApplication(app)}
-                      className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    {app.status === 'PENDING' && (
-                      <>
-                        <button
-                          onClick={() => handleApproveApplication(app.id)}
-                          className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                          title="Approve"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleRejectApplication(app.id)}
-                          className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                          title="Reject"
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
-            data={applications.filter(app => {
-              if (!searchQuery) return true;
-              const query = searchQuery.toLowerCase();
-              return (
-                (app.first_name + ' ' + app.last_name).toLowerCase().includes(query) ||
-                app.email.toLowerCase().includes(query) ||
-                (app.business_name || app.primary_service).toLowerCase().includes(query)
-              );
-            })}
-            keyExtractor={(app) => app.id}
-            emptyMessage="No applications found"
+          <ApplicationsList
+            applications={applications}
+            searchQuery={searchQuery}
+            onView={handleViewApplication}
+            onApprove={handleApproveApplication}
+            onReject={handleRejectApplication}
           />
         )}
 
-        {/* Add/Edit User Modal */}
-        <Modal
+        {/* Modals */}
+        <AddEditUserModal
           isOpen={isAddModalOpen}
+          isEditing={!!selectedUser}
+          formData={formData}
           onClose={() => {
             setIsAddModalOpen(false);
             setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
             setSelectedUser(null);
           }}
-          title={selectedUser ? 'Edit User' : 'Add New User'}
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
-                {selectedUser ? 'Update User' : 'Add User'}
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <Input
-              label="Full Name"
-              placeholder="Enter full name"
-              value={formData.name}
-              onChange={(value) => setFormData({ ...formData, name: value })}
-              required
-              fullWidth
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="Enter email address"
-              value={formData.email}
-              onChange={(value) => setFormData({ ...formData, email: value })}
-              icon={Mail}
-              required
-              fullWidth
-            />
-            <Input
-              label="Phone"
-              type="tel"
-              placeholder="Enter phone number"
-              value={formData.phone}
-              onChange={(value) => setFormData({ ...formData, phone: value })}
-              icon={Phone}
-              required
-              fullWidth
-            />
-          </div>
-        </Modal>
+          onSubmit={handleSubmit}
+          onFormChange={handleFormChange}
+        />
 
-        {/* View/Edit Application Modal */}
-        <Modal
-          isOpen={isViewModalOpen}
-          onClose={() => {
-            setIsViewModalOpen(false);
-            setSelectedUser(null);
-            setSelectedApplication(null);
-            setIsEditingApplication(false);
-          }}
-          title={selectedApplication ? "Application Details" : "User Details"}
-          size="2xl"
-          footer={selectedApplication && (
-            <div className="flex items-center justify-between w-full">
-              <div className="flex gap-3">
-                {selectedApplication.status === 'PENDING' && !isEditingApplication && (
-                  <>
-                    <Button
-                      icon={CheckCircle}
-                      onClick={() => {
-                        handleApproveApplication(selectedApplication.id);
-                        setIsViewModalOpen(false);
-                      }}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="danger"
-                      icon={XCircle}
-                      onClick={() => {
-                        handleRejectApplication(selectedApplication.id);
-                        setIsViewModalOpen(false);
-                      }}
-                    >
-                      Reject
-                    </Button>
-                  </>
-                )}
-              </div>
-              <div className="flex gap-3">
-                {isEditingApplication ? (
-                  <>
-                    <Button variant="ghost" onClick={handleCancelEditApplication}>
-                      Cancel
-                    </Button>
-                    <Button icon={Save} onClick={handleSaveApplication}>
-                      Save Changes
-                    </Button>
-                  </>
-                ) : (
-                  selectedApplication.status === 'PENDING' && (
-                    <Button icon={Edit} onClick={handleEditApplication}>
-                      Edit Application
-                    </Button>
-                  )
-                )}
-              </div>
-            </div>
-          )}
-        >
-          {selectedUser && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-[#C8102E] flex items-center justify-center text-white text-3xl font-bold">
-                  {selectedUser.name?.charAt(0) || 'U'}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedUser.name || `${selectedUser.first_name} ${selectedUser.last_name}`}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={selectedUser.role === 'ADMIN' || selectedUser.role === 'SUPER_ADMIN' ? 'info' : 'neutral'}>
-                      {selectedUser.role}
-                    </Badge>
-                    <Badge variant={selectedUser.is_active ? 'success' : 'warning'}>
-                      {selectedUser.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
+        {selectedUser && (
+          <ViewUserModal
+            isOpen={isViewModalOpen && !selectedApplication}
+            user={selectedUser}
+            onClose={handleCloseViewModal}
+          />
+        )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Email</p>
-                  <p className="font-medium text-gray-900">{selectedUser.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Phone</p>
-                  <p className="font-medium text-gray-900">{selectedUser.phone || 'Not provided'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Joined</p>
-                  <p className="font-medium text-gray-900">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Role</p>
-                  <p className="font-medium text-gray-900">{selectedUser.role}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {selectedApplication && editedApplication && (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* Header with Status */}
-              <div className="flex items-center justify-between pb-4 border-b">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {editedApplication.first_name} {editedApplication.last_name}
-                  </h3>
-                  <p className="text-sm text-gray-600">{editedApplication.email}</p>
-                </div>
-                <Badge variant={
-                  selectedApplication.status === 'APPROVED' ? 'success' :
-                  selectedApplication.status === 'REJECTED' ? 'danger' :
-                  'warning'
-                }>
-                  {selectedApplication.status}
-                </Badge>
-              </div>
-
-              {/* Personal Information */}
-              <Accordion title="Personal Information" defaultOpen={true}>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="First Name"
-                    value={editedApplication.first_name || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, first_name: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Last Name"
-                    value={editedApplication.last_name || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, last_name: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Email"
-                    value={editedApplication.email || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, email: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Phone"
-                    value={editedApplication.phone || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, phone: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Landline (Optional)"
-                    value={editedApplication.landline || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, landline: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="ID Number"
-                    value={editedApplication.sa_id_number || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, sa_id_number: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-              </Accordion>
-
-              {/* Business Information */}
-              <Accordion title="Business Information" defaultOpen={true}>
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Seller Role"
-                    value={editedApplication.seller_role || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, seller_role: v})}
-                    options={[
-                      { value: 'RETAILER', label: 'Retailer' },
-                      { value: 'WHOLESALER', label: 'Wholesaler' },
-                    ]}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Business Type"
-                    value={editedApplication.business_type || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, business_type: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Business Name"
-                    value={editedApplication.business_name || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, business_name: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Business Registration"
-                    value={editedApplication.business_registration || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, business_registration: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Applicant Type"
-                    value={editedApplication.applicant_type || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, applicant_type: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Identification Type"
-                    value={editedApplication.identification_type || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, identification_type: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Business Summary
-                  </label>
-                  <textarea
-                    value={editedApplication.business_summary || ''}
-                    onChange={(e) => setEditedApplication({...editedApplication, business_summary: e.target.value})}
-                    disabled={!isEditingApplication}
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C8102E] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-              </Accordion>
-
-              {/* VAT & Financial Information */}
-              <Accordion title="VAT & Financial Information">
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="VAT Registered"
-                    value={editedApplication.vat_registered || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, vat_registered: v})}
-                    options={[
-                      { value: 'YES', label: 'Yes' },
-                      { value: 'NO', label: 'No' },
-                    ]}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="VAT Number"
-                    value={editedApplication.vat_number || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, vat_number: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Monthly Revenue"
-                    value={editedApplication.monthly_revenue || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, monthly_revenue: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-              </Accordion>
-
-              {/* Physical Stores */}
-              <Accordion title="Physical Stores & Distribution">
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Physical Stores"
-                    value={editedApplication.physical_stores || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, physical_stores: v})}
-                    options={[
-                      { value: 'YES', label: 'Yes' },
-                      { value: 'NO', label: 'No' },
-                    ]}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Number of Stores"
-                    value={editedApplication.number_of_stores || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, number_of_stores: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Select
-                    label="Supplier to Retailers"
-                    value={editedApplication.supplier_to_retailers || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, supplier_to_retailers: v})}
-                    options={[
-                      { value: 'YES', label: 'Yes' },
-                      { value: 'NO', label: 'No' },
-                    ]}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Other Marketplaces"
-                    value={editedApplication.other_marketplaces || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, other_marketplaces: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-              </Accordion>
-
-              {/* Address Information */}
-              <Accordion title="Address Information">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Input
-                      label="Address"
-                      value={editedApplication.address || ''}
-                      onChange={(v) => setEditedApplication({...editedApplication, address: v})}
-                      disabled={!isEditingApplication}
-                      fullWidth
-                    />
-                  </div>
-                  <Input
-                    label="City"
-                    value={editedApplication.city || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, city: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Province"
-                    value={editedApplication.province || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, province: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Postal Code"
-                    value={editedApplication.postal_code || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, postal_code: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-              </Accordion>
-
-              {/* Products & Inventory */}
-              <Accordion title="Products & Inventory">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Primary Category"
-                    value={editedApplication.primary_category || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, primary_category: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Stock Type"
-                    value={editedApplication.stock_type || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, stock_type: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Unique Products"
-                    value={editedApplication.unique_products || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, unique_products: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Owned Brands"
-                    value={editedApplication.owned_brands || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, owned_brands: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Reseller Brands"
-                    value={editedApplication.reseller_brands || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, reseller_brands: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Description
-                  </label>
-                  <textarea
-                    value={editedApplication.product_description || ''}
-                    onChange={(e) => setEditedApplication({...editedApplication, product_description: e.target.value})}
-                    disabled={!isEditingApplication}
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C8102E] focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
-              </Accordion>
-
-              {/* Online Presence */}
-              <Accordion title="Online Presence">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Website"
-                    value={editedApplication.website || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, website: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <Input
-                    label="Social Media"
-                    value={editedApplication.social_media || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, social_media: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                </div>
-              </Accordion>
-
-              {/* Additional Information */}
-              <Accordion title="Additional Information">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="How Did You Hear About Us?"
-                    value={editedApplication.how_did_you_hear || ''}
-                    onChange={(v) => setEditedApplication({...editedApplication, how_did_you_hear: v})}
-                    disabled={!isEditingApplication}
-                    fullWidth
-                  />
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editedApplication.agree_to_terms || false}
-                      onChange={(e) => setEditedApplication({...editedApplication, agree_to_terms: e.target.checked})}
-                      disabled={!isEditingApplication}
-                      className="w-4 h-4 text-[#C8102E] border-gray-300 rounded focus:ring-[#C8102E]"
-                    />
-                    <label className="ml-2 text-sm text-gray-700">Agrees to Terms & Conditions</label>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600">
-                    <strong>Applied:</strong> {new Date(selectedApplication.created_at).toLocaleDateString()} at {new Date(selectedApplication.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              </Accordion>
-            </div>
-          )}
-        </Modal>
+        {selectedApplication && editedApplication && (
+          <ApplicationDetailsModal
+            isOpen={isViewModalOpen && !!selectedApplication}
+            application={selectedApplication}
+            editedApplication={editedApplication}
+            isEditing={isEditingApplication}
+            onClose={handleCloseViewModal}
+            onEdit={handleEditApplication}
+            onSave={handleSaveApplication}
+            onCancel={handleCancelEditApplication}
+            onApprove={handleApproveApplication}
+            onReject={handleRejectApplication}
+            onFieldChange={handleApplicationFieldChange}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
 }
-

@@ -143,14 +143,12 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Security Notice */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
             🔒 Your connection is secure and encrypted
           </p>
         </div>
 
-        {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>© 2025 eXobe Platform. All rights reserved.</p>
         </div>

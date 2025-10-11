@@ -1,0 +1,35 @@
+"use client";
+
+interface ApplicationsStatsProps {
+  applications: any[];
+}
+
+export default function ApplicationsStats({ applications }: ApplicationsStatsProps) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <p className="text-sm text-gray-600 mb-1">Total Applications</p>
+        <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <p className="text-sm text-gray-600 mb-1">Pending</p>
+        <p className="text-2xl font-bold text-yellow-600">
+          {applications.filter(app => app.status === 'PENDING').length}
+        </p>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <p className="text-sm text-gray-600 mb-1">Approved</p>
+        <p className="text-2xl font-bold text-green-600">
+          {applications.filter(app => app.status === 'APPROVED').length}
+        </p>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <p className="text-sm text-gray-600 mb-1">Rejected</p>
+        <p className="text-2xl font-bold text-red-600">
+          {applications.filter(app => app.status === 'REJECTED').length}
+        </p>
+      </div>
+    </div>
+  );
+}
+
