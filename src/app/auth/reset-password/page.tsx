@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useToast } from '../../../context/ToastContext';
+import { getApolloClient } from '../../../lib/apollo/client';
+import { RESET_PASSWORD } from '../../../lib/api/auth';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 
@@ -70,17 +72,20 @@ function ResetPasswordClient() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const client = getApolloClient();
+      await client.mutate({
+        mutation: RESET_PASSWORD,
+        variables: { token, newPassword: formData.password },
+      });
       setIsSuccess(true);
       showSuccess('Password reset successful!');
+      setTimeout(() => router.push('/auth/login'), 1200);
+    } catch (err) {
+      showError('Reset link is invalid or expired. Request a new one.');
+    } finally {
       setIsLoading(false);
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        router.push('/auth/login');
-      }, 2000);
-    }, 1000);
+    }
   };
 
   // Invalid token state

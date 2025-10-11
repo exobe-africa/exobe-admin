@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import { useToast } from '../../../context/ToastContext';
+import { getApolloClient } from '../../../lib/apollo/client';
+import { REQUEST_PASSWORD_RESET } from '../../../lib/api/auth';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 
@@ -21,16 +23,19 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email) {
-        setIsSubmitted(true);
-        showSuccess('Password reset link sent to your email');
-      } else {
-        showError('Please enter your email address');
-      }
+    try {
+      const client = getApolloClient();
+      await client.mutate({
+        mutation: REQUEST_PASSWORD_RESET,
+        variables: { email },
+      });
+      setIsSubmitted(true);
+      showSuccess('Password reset link sent to your email');
+    } catch (err) {
+      showError('Failed to send reset link. Please verify your email.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   if (isSubmitted) {

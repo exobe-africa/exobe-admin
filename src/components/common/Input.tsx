@@ -48,7 +48,7 @@ export default function Input({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all ${
+          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all text-gray-900 placeholder:text-gray-400 ${
             Icon ? 'pl-10' : ''
           } ${error ? 'border-red-500' : 'border-gray-300'} ${
             disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
