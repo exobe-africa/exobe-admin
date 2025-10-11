@@ -1,20 +1,18 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
-import { useAdmin } from '../../../context/AdminContext';
-import { LOGIN_MUTATION } from '../../../lib/api/auth';
-import { getApolloClient } from '../../../lib/apollo/client';
+import { useAuthStore } from '../../../store/auth';
 import { useToast } from '../../../context/ToastContext';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAdmin();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const { showSuccess, showError } = useToast();
   
   const [formData, setFormData] = useState({
@@ -23,39 +21,33 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
+
+  // Clear errors when unmounting
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
     try {
-      const client = getApolloClient();
-      const { data } = await client.mutate({
-        mutation: LOGIN_MUTATION,
-        variables: { input: { email: formData.email, password: formData.password } },
+      await login({
+        email: formData.email,
+        password: formData.password,
       });
-      const user = data?.login;
-      if (!user) throw new Error('Invalid response');
-      if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-        showError('You do not have permission to access the admin dashboard.');
-        setIsLoading(false);
-        return;
-      }
-      login({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        permissions: ['all'],
-        token: user.token,
-      });
+      
       showSuccess('Welcome back! Login successful.');
       router.push('/');
-    } catch (err) {
-      showError('Invalid email or password');
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Invalid email or password';
+      showError(errorMessage);
     }
   };
 
@@ -156,4 +148,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

@@ -5,15 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
+import { useAuthStore } from '../../../store/auth';
 import { useToast } from '../../../context/ToastContext';
-import { getApolloClient } from '../../../lib/apollo/client';
-import { RESET_PASSWORD } from '../../../lib/api/auth';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 
 function ResetPasswordClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { resetPassword, isLoading, error, clearError } = useAuthStore();
   const { showSuccess, showError } = useToast();
   
   const [formData, setFormData] = useState({
@@ -22,7 +22,6 @@ function ResetPasswordClient() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [tokenValid, setTokenValid] = useState(true);
@@ -31,11 +30,16 @@ function ResetPasswordClient() {
     const tokenParam = searchParams.get('token');
     setToken(tokenParam);
     
-    // Simulate token validation
+    // Validate token exists
     if (!tokenParam) {
       setTokenValid(false);
     }
   }, [searchParams]);
+
+  // Clear errors when unmounting
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const validatePassword = (password: string) => {
     const minLength = password.length >= 8;
@@ -70,21 +74,19 @@ function ResetPasswordClient() {
       return;
     }
 
-    setIsLoading(true);
+    if (!token) {
+      showError('Invalid reset token');
+      return;
+    }
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: RESET_PASSWORD,
-        variables: { token, newPassword: formData.password },
-      });
+      await resetPassword(token, formData.password);
       setIsSuccess(true);
       showSuccess('Password reset successful!');
       setTimeout(() => router.push('/auth/login'), 1200);
-    } catch (err) {
-      showError('Reset link is invalid or expired. Request a new one.');
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Reset link is invalid or expired. Request a new one.';
+      showError(errorMessage);
     }
   };
 
@@ -292,4 +294,3 @@ export default function ResetPasswordPage() {
     </Suspense>
   );
 }
-

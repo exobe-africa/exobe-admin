@@ -4,15 +4,9 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Button from '../../components/common/Button';
 import { UserPlus } from 'lucide-react';
-import { getApolloClient } from '../../lib/apollo/client';
-import { ADMIN_USERS_QUERY } from '../../lib/api/users';
-import {
-  SELLER_APPLICATIONS_QUERY,
-  APPROVE_SELLER_APPLICATION,
-  REJECT_SELLER_APPLICATION,
-  UPDATE_SELLER_APPLICATION
-} from '../../lib/api/applications';
 import { useToast } from '../../context/ToastContext';
+import { useUsersStore, Role, UserRow } from '../../store/users';
+import { useApplicationsStore } from '../../store/applications';
 import {
   UsersList,
   ApplicationsList,
@@ -25,26 +19,8 @@ import {
   ApplicationDetailsModal,
 } from '../../components/pages/users';
 
-type Role = 'ADMIN' | 'SUPER_ADMIN' | 'CUSTOMER' | 'RETAILER' | 'WHOLESALER' | 'SERVICE_PROVIDER';
-
-type UserRow = {
-  id: string;
-  name?: string | null;
-  email: string;
-  phone?: string | null;
-  role: Role;
-  is_active: boolean;
-  created_at: string;
-};
-
 export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<'users' | 'applications'>('users');
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState<Role | ''>('');
-  const [filterStatus, setFilterStatus] = useState<'Active' | 'Inactive' | ''>('');
-  const [applicationFilterStatus, setApplicationFilterStatus] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
@@ -53,12 +29,82 @@ export default function UsersPage() {
   const [editedApplication, setEditedApplication] = useState<any>(null);
   const { showSuccess, showError } = useToast();
 
+  // Users store
+  const {
+    users,
+    filters: userFilters,
+    isLoading: usersLoading,
+    setFilters: setUserFilters,
+    fetchUsers,
+    addUser,
+    updateUser,
+    deleteUser,
+    clearError: clearUsersError,
+  } = useUsersStore();
+
+  // Applications store
+  const {
+    applications,
+    filters: appFilters,
+    isLoading: appsLoading,
+    setFilters: setAppFilters,
+    fetchApplications,
+    approveApplication,
+    rejectApplication,
+    updateApplication,
+    clearError: clearAppsError,
+  } = useApplicationsStore();
+
   const [formData, setFormData] = useState<{ name: string; email: string; phone: string; role: Role }>({
     name: '',
     email: '',
     phone: '',
     role: 'CUSTOMER',
   });
+
+  // Fetch data when tab changes
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers().catch(err => {
+        showError('Failed to load users');
+        console.error('Error fetching users:', err);
+      });
+    } else {
+      fetchApplications().catch(err => {
+        showError('Failed to load applications');
+        console.error('Error fetching applications:', err);
+      });
+    }
+  }, [activeTab]);
+
+  // Debounce search for users
+  useEffect(() => {
+    if (activeTab === 'users') {
+      const timer = setTimeout(() => {
+        fetchUsers().catch(err => {
+          console.error('Error fetching users:', err);
+        });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [userFilters.searchQuery, userFilters.role, userFilters.status, activeTab]);
+
+  // Fetch applications when filters change
+  useEffect(() => {
+    if (activeTab === 'applications') {
+      fetchApplications().catch(err => {
+        console.error('Error fetching applications:', err);
+      });
+    }
+  }, [appFilters.status, activeTab]);
+
+  // Clear errors on unmount
+  useEffect(() => {
+    return () => {
+      clearUsersError();
+      clearAppsError();
+    };
+  }, []);
 
   const handleViewUser = (user: any) => {
     setSelectedUser(user);
@@ -67,9 +113,9 @@ export default function UsersPage() {
 
   const handleEditUser = (user: any) => {
     setFormData({
-      name: user.name,
+      name: user.name || '',
       email: user.email,
-      phone: user.phone,
+      phone: user.phone || '',
       role: user.role as Role,
     });
     setSelectedUser(user);
@@ -78,16 +124,25 @@ export default function UsersPage() {
 
   const handleDeleteUser = (userId: string) => {
     if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== userId));
+      deleteUser(userId);
+      showSuccess('User deleted successfully');
     }
   };
 
   const handleSubmit = () => {
     if (selectedUser) {
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, name: formData.name, email: formData.email, phone: formData.phone, role: formData.role } : u));
+      // Update existing user
+      updateUser(selectedUser.id, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role,
+      });
+      showSuccess('User updated successfully');
     } else {
+      // Add new user
       const newUser: UserRow = {
-        id: String(users.length + 1),
+        id: String(Date.now()),
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -95,7 +150,8 @@ export default function UsersPage() {
         is_active: true,
         created_at: new Date().toISOString(),
       };
-      setUsers([...users, newUser]);
+      addUser(newUser);
+      showSuccess('User added successfully');
     }
     setIsAddModalOpen(false);
     setFormData({ name: '', email: '', phone: '', role: 'CUSTOMER' });
@@ -107,48 +163,13 @@ export default function UsersPage() {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = !filterRole || user.role === filterRole;
-    const matchesStatus = !filterStatus || (filterStatus === 'Active' ? user.is_active : !user.is_active);
-    return matchesSearch && matchesRole && matchesStatus;
+    if (!userFilters.searchQuery) return true;
+    const query = userFilters.searchQuery.toLowerCase();
+    return (
+      (user.name || '').toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query)
+    );
   });
-
-  const fetchUsers = async () => {
-    const client = getApolloClient();
-    const { data } = await client.query({
-      query: ADMIN_USERS_QUERY,
-      variables: {
-        query: searchQuery || null,
-        role: filterRole || null,
-        status: filterStatus === '' ? null : filterStatus === 'Active',
-      },
-      fetchPolicy: 'network-only',
-    });
-    setUsers(data?.searchUsers ?? []);
-  };
-
-  const fetchApplications = async () => {
-    const client = getApolloClient();
-    const query = SELLER_APPLICATIONS_QUERY;
-
-    try {
-      const { data } = await client.query({
-        query,
-        variables: {
-          status: applicationFilterStatus || undefined,
-          take: 50,
-          skip: 0,
-        },
-        fetchPolicy: 'network-only',
-      });
-
-      setApplications(data?.sellerApplications || []);
-    } catch (error) {
-      showError('Failed to load applications');
-      console.error('Error fetching applications:', error);
-    }
-  };
 
   const handleApproveApplication = async (applicationId: string) => {
     if (!confirm('Are you sure you want to approve this application? This will create a vendor account.')) {
@@ -156,14 +177,8 @@ export default function UsersPage() {
     }
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: APPROVE_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
+      await approveApplication(applicationId);
       showSuccess('Application approved successfully!');
-      fetchApplications();
     } catch (error) {
       showError('Failed to approve application');
       console.error('Error approving application:', error);
@@ -176,14 +191,8 @@ export default function UsersPage() {
     }
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: REJECT_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
+      await rejectApplication(applicationId);
       showSuccess('Application rejected successfully!');
-      fetchApplications();
     } catch (error) {
       showError('Failed to reject application');
       console.error('Error rejecting application:', error);
@@ -214,53 +223,45 @@ export default function UsersPage() {
     if (!editedApplication || !selectedApplication) return;
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: UPDATE_SELLER_APPLICATION,
-        variables: {
-          applicationId: selectedApplication.id,
-          data: {
-            sellerRole: editedApplication.seller_role,
-            businessType: editedApplication.business_type,
-            applicantType: editedApplication.applicant_type,
-            firstName: editedApplication.first_name,
-            lastName: editedApplication.last_name,
-            email: editedApplication.email,
-            phone: editedApplication.phone,
-            landline: editedApplication.landline || null,
-            identificationType: editedApplication.identification_type,
-            businessName: editedApplication.business_name,
-            businessRegistration: editedApplication.business_registration || null,
-            saIdNumber: editedApplication.sa_id_number || null,
-            vatRegistered: editedApplication.vat_registered,
-            vatNumber: editedApplication.vat_number || null,
-            monthlyRevenue: editedApplication.monthly_revenue || null,
-            physicalStores: editedApplication.physical_stores || null,
-            numberOfStores: editedApplication.number_of_stores || null,
-            supplierToRetailers: editedApplication.supplier_to_retailers || null,
-            otherMarketplaces: editedApplication.other_marketplaces || null,
-            address: editedApplication.address,
-            city: editedApplication.city,
-            province: editedApplication.province,
-            postalCode: editedApplication.postal_code,
-            uniqueProducts: editedApplication.unique_products || null,
-            primaryCategory: editedApplication.primary_category,
-            stockType: editedApplication.stock_type,
-            productDescription: editedApplication.product_description,
-            ownedBrands: editedApplication.owned_brands || null,
-            resellerBrands: editedApplication.reseller_brands || null,
-            website: editedApplication.website || null,
-            socialMedia: editedApplication.social_media || null,
-            businessSummary: editedApplication.business_summary,
-            howDidYouHear: editedApplication.how_did_you_hear,
-            agreeToTerms: editedApplication.agree_to_terms,
-          },
-        },
+      await updateApplication(selectedApplication.id, {
+        sellerRole: editedApplication.seller_role,
+        businessType: editedApplication.business_type,
+        applicantType: editedApplication.applicant_type,
+        firstName: editedApplication.first_name,
+        lastName: editedApplication.last_name,
+        email: editedApplication.email,
+        phone: editedApplication.phone,
+        landline: editedApplication.landline || null,
+        identificationType: editedApplication.identification_type,
+        businessName: editedApplication.business_name,
+        businessRegistration: editedApplication.business_registration || null,
+        saIdNumber: editedApplication.sa_id_number || null,
+        vatRegistered: editedApplication.vat_registered,
+        vatNumber: editedApplication.vat_number || null,
+        monthlyRevenue: editedApplication.monthly_revenue || null,
+        physicalStores: editedApplication.physical_stores || null,
+        numberOfStores: editedApplication.number_of_stores || null,
+        supplierToRetailers: editedApplication.supplier_to_retailers || null,
+        otherMarketplaces: editedApplication.other_marketplaces || null,
+        address: editedApplication.address,
+        city: editedApplication.city,
+        province: editedApplication.province,
+        postalCode: editedApplication.postal_code,
+        uniqueProducts: editedApplication.unique_products || null,
+        primaryCategory: editedApplication.primary_category,
+        stockType: editedApplication.stock_type,
+        productDescription: editedApplication.product_description,
+        ownedBrands: editedApplication.owned_brands || null,
+        resellerBrands: editedApplication.reseller_brands || null,
+        website: editedApplication.website || null,
+        socialMedia: editedApplication.social_media || null,
+        businessSummary: editedApplication.business_summary,
+        howDidYouHear: editedApplication.how_did_you_hear,
+        agreeToTerms: editedApplication.agree_to_terms,
       });
 
       showSuccess('Application updated successfully!');
       setIsEditingApplication(false);
-      fetchApplications();
       setIsViewModalOpen(false);
     } catch (error) {
       showError('Failed to update application');
@@ -274,15 +275,6 @@ export default function UsersPage() {
     setSelectedApplication(null);
     setIsEditingApplication(false);
   };
-
-  useEffect(() => {
-    if (activeTab === 'users') {
-      const t = setTimeout(fetchUsers, 250);
-      return () => clearTimeout(t);
-    } else {
-      fetchApplications();
-    }
-  }, [activeTab, searchQuery, filterRole, filterStatus, applicationFilterStatus]);
 
   return (
     <DashboardLayout>
@@ -327,19 +319,19 @@ export default function UsersPage() {
         {/* Filters */}
         {activeTab === 'users' ? (
           <UsersFilters
-            searchQuery={searchQuery}
-            filterRole={filterRole}
-            filterStatus={filterStatus}
-            onSearchChange={setSearchQuery}
-            onRoleChange={setFilterRole}
-            onStatusChange={setFilterStatus}
+            searchQuery={userFilters.searchQuery}
+            filterRole={userFilters.role}
+            filterStatus={userFilters.status}
+            onSearchChange={(value) => setUserFilters({ searchQuery: value })}
+            onRoleChange={(value) => setUserFilters({ role: value })}
+            onStatusChange={(value) => setUserFilters({ status: value })}
           />
         ) : (
           <ApplicationsFilters
-            searchQuery={searchQuery}
-            filterStatus={applicationFilterStatus}
-            onSearchChange={setSearchQuery}
-            onStatusChange={setApplicationFilterStatus}
+            searchQuery={appFilters.searchQuery}
+            filterStatus={appFilters.status}
+            onSearchChange={(value) => setAppFilters({ searchQuery: value })}
+            onStatusChange={(value) => setAppFilters({ status: value })}
           />
         )}
 
@@ -361,7 +353,7 @@ export default function UsersPage() {
         ) : (
           <ApplicationsList
             applications={applications}
-            searchQuery={searchQuery}
+            searchQuery={appFilters.searchQuery}
             onView={handleViewApplication}
             onApprove={handleApproveApplication}
             onReject={handleRejectApplication}

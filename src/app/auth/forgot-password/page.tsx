@@ -1,40 +1,38 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
+import { useAuthStore } from '../../../store/auth';
 import { useToast } from '../../../context/ToastContext';
-import { getApolloClient } from '../../../lib/apollo/client';
-import { REQUEST_PASSWORD_RESET } from '../../../lib/api/auth';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const { requestPasswordReset, isLoading, error, clearError } = useAuthStore();
   const { showSuccess, showError } = useToast();
   
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Clear errors when unmounting
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: REQUEST_PASSWORD_RESET,
-        variables: { email },
-      });
+      await requestPasswordReset(email);
       setIsSubmitted(true);
       showSuccess('Password reset link sent to your email');
-    } catch (err) {
-      showError('Failed to send reset link. Please verify your email.');
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to send reset link. Please verify your email.';
+      showError(errorMessage);
     }
   };
 
@@ -79,25 +77,25 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Logo and Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-4">
-              <Image 
-                src="/exobe-logo.png" 
-                alt="eXobe Logo" 
-                width={200} 
-                height={80}
-                className="object-contain"
-                priority
-              />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
-            <p className="text-gray-600">
-              No worries! Enter your email and we'll send you reset instructions.
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo and Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center mb-4">
+            <Image 
+              src="/exobe-logo.png" 
+              alt="eXobe Logo" 
+              width={200} 
+              height={80}
+              className="object-contain"
+              priority
+            />
           </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>
+          <p className="text-gray-600">
+            No worries! Enter your email and we'll send you reset instructions.
+          </p>
+        </div>
 
         {/* Forgot Password Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
@@ -152,4 +150,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

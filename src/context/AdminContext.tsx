@@ -1,57 +1,41 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface AdminUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER';
-  avatar?: string | null;
-  permissions: string[];
-  token?: string;
-}
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { useAuthStore, AdminUser } from '../store/auth';
 
 interface AdminContextType {
   admin: AdminUser | null;
   isLoggedIn: boolean;
   login: (adminData: AdminUser) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateAdmin: (adminData: Partial<AdminUser>) => void;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, isAuthenticated, logout: storeLogout } = useAuthStore();
 
+  // Sync cookies on mount and when user changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedAdmin = localStorage.getItem('exobeAdmin');
-      
-      if (storedAdmin) {
-        try {
-          const adminData = JSON.parse(storedAdmin);
-          setAdmin(adminData);
-          setIsLoggedIn(true);
-        } catch (error) {
-          console.warn('Failed to load admin from localStorage:', error);
-        }
+    if (typeof window !== 'undefined' && user && isAuthenticated) {
+      // Set cookie for middleware authentication
+      if (user.token) {
+        document.cookie = `exobeAdminToken=${user.token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
+      }
+      if (user.role) {
+        document.cookie = `exobeAdminRole=${user.role}; path=/; max-age=${60 * 60 * 24 * 7}`;
       }
     }
-  }, []);
+  }, [user, isAuthenticated]);
 
   const login = (adminData: AdminUser) => {
-    setAdmin(adminData);
-    setIsLoggedIn(true);
-    
+    // This is now handled by the Zustand store, but kept for backward compatibility
+    // The actual login should use useAuthStore().login() directly
     if (typeof window !== 'undefined') {
-      localStorage.setItem('exobeAdmin', JSON.stringify(adminData));
-      
-      // Set cookie for middleware authentication
+      // Set cookies
       if (adminData.token) {
-        document.cookie = `exobeAdminToken=${adminData.token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
+        document.cookie = `exobeAdminToken=${adminData.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
       }
       if (adminData.role) {
         document.cookie = `exobeAdminRole=${adminData.role}; path=/; max-age=${60 * 60 * 24 * 7}`;
@@ -59,14 +43,11 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    setAdmin(null);
-    setIsLoggedIn(false);
+  const logout = async () => {
+    await storeLogout();
     
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('exobeAdmin');
-      
-      // Clear authentication cookie
+      // Clear authentication cookies
       document.cookie = 'exobeAdminToken=; path=/; max-age=0';
       document.cookie = 'exobeAdminRole=; path=/; max-age=0';
       
@@ -76,20 +57,15 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateAdmin = (adminData: Partial<AdminUser>) => {
-    if (admin) {
-      const updatedAdmin = { ...admin, ...adminData };
-      setAdmin(updatedAdmin);
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('exobeAdmin', JSON.stringify(updatedAdmin));
-      }
-    }
+    // This would need to be implemented in the Zustand store if needed
+    // For now, kept for backward compatibility
+    console.warn('updateAdmin is deprecated, use Zustand store directly');
   };
 
   return (
     <AdminContext.Provider value={{
-      admin,
-      isLoggedIn,
+      admin: user,
+      isLoggedIn: isAuthenticated,
       login,
       logout,
       updateAdmin
@@ -106,4 +82,3 @@ export const useAdmin = () => {
   }
   return context;
 };
-
