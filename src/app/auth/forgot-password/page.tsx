@@ -89,6 +89,7 @@ export default function ForgotPasswordPage() {
               height={80}
               className="object-contain"
               priority
+              unoptimized
             />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password?</h1>

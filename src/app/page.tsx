@@ -63,18 +63,11 @@ export default function HomePage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
-        {/* Page Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
           <p className="text-gray-600">Welcome back{admin?.name ? `, ${admin.name}` : ''}! Here's what's happening with your platform today.</p>
-          {admin && (
-            <div className="mt-3 text-sm text-gray-700">
-              <span className="font-medium">Signed in as:</span> {admin.name} · {admin.email} · <span className="uppercase">{admin.role}</span>
-            </div>
-          )}
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           <StatCard
             title="Total Users"

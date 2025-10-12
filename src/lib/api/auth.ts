@@ -37,4 +37,15 @@ export const RESET_PASSWORD = gql`
   }
 `;
 
+export const UPDATE_MY_PASSWORD = gql`
+  mutation UpdateMyPassword($input: UpdatePasswordInput!) {
+    updateMyPassword(input: $input)
+  }
+`;
+
+export const UPDATE_MY_PROFILE = gql`
+  mutation UpdateMyProfile($input: UpdateProfileInput!) {
+    updateMyProfile(input: $input)
+  }
+`;
 
