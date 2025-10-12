@@ -8,79 +8,43 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
-import { Search, Eye, CheckCircle, XCircle, Edit, Filter, Save } from 'lucide-react';
-import { getApolloClient } from '../../lib/apollo/client';
-import {
-  SELLER_APPLICATIONS_QUERY,
-  SERVICE_PROVIDER_APPLICATIONS_QUERY,
-  APPROVE_SELLER_APPLICATION,
-  REJECT_SELLER_APPLICATION,
-  UPDATE_SELLER_APPLICATION
-} from '../../lib/api/applications';
+import { Search, Eye, CheckCircle, XCircle, Edit, Save } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { useApplicationsStore } from '../../store/applications';
 import Accordion from '../../components/common/Accordion';
 
 type ApplicationType = 'seller' | 'service-provider';
 
-type SellerApplication = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  business_name: string;
-  business_summary: string;
-  status: string;
-  created_at: string;
-};
-
-type ServiceProviderApplication = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  primary_service: string;
-  status: string;
-  created_at: string;
-};
-
 export default function ApplicationsPage() {
   const [activeTab, setActiveTab] = useState<ApplicationType>('seller');
-  const [applications, setApplications] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [editedApplication, setEditedApplication] = useState<any>(null);
   const { showSuccess, showError } = useToast();
 
-  const fetchApplications = async () => {
-    const client = getApolloClient();
-    const query = activeTab === 'seller' ? SELLER_APPLICATIONS_QUERY : SERVICE_PROVIDER_APPLICATIONS_QUERY;
-
-    try {
-      const { data } = await client.query({
-        query,
-        variables: {
-          status: filterStatus || undefined,
-          take: 50,
-          skip: 0,
-        },
-        fetchPolicy: 'network-only',
-      });
-
-      setApplications(data[activeTab === 'seller' ? 'sellerApplications' : 'serviceProviderApplications'] || []);
-    } catch (error) {
-      showError('Failed to load applications');
-      console.error('Error fetching applications:', error);
-    }
-  };
+  const {
+    applications,
+    filters,
+    isLoading,
+    setFilters,
+    fetchApplications,
+    approveApplication,
+    rejectApplication,
+    updateApplication,
+    clearError,
+  } = useApplicationsStore();
 
   useEffect(() => {
-    fetchApplications();
-  }, [activeTab, filterStatus]);
+    fetchApplications().catch(err => {
+      showError('Failed to load applications');
+      console.error('Error fetching applications:', err);
+    });
+  }, [activeTab, filters.status]);
+
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
   const handleApprove = async (applicationId: string) => {
     if (!confirm('Are you sure you want to approve this application? This will create a vendor account.')) {
@@ -88,14 +52,8 @@ export default function ApplicationsPage() {
     }
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: APPROVE_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
+      await approveApplication(applicationId);
       showSuccess('Application approved successfully!');
-      fetchApplications();
     } catch (error) {
       showError('Failed to approve application');
       console.error('Error approving application:', error);
@@ -108,14 +66,8 @@ export default function ApplicationsPage() {
     }
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: REJECT_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
+      await rejectApplication(applicationId);
       showSuccess('Application rejected successfully!');
-      fetchApplications();
     } catch (error) {
       showError('Failed to reject application');
       console.error('Error rejecting application:', error);
@@ -142,53 +94,45 @@ export default function ApplicationsPage() {
     if (!editedApplication || !selectedApplication) return;
 
     try {
-      const client = getApolloClient();
-      await client.mutate({
-        mutation: UPDATE_SELLER_APPLICATION,
-        variables: {
-          applicationId: selectedApplication.id,
-          data: {
-            sellerRole: editedApplication.seller_role,
-            businessType: editedApplication.business_type,
-            applicantType: editedApplication.applicant_type,
-            firstName: editedApplication.first_name,
-            lastName: editedApplication.last_name,
-            email: editedApplication.email,
-            phone: editedApplication.phone,
-            landline: editedApplication.landline || null,
-            identificationType: editedApplication.identification_type,
-            businessName: editedApplication.business_name,
-            businessRegistration: editedApplication.business_registration || null,
-            saIdNumber: editedApplication.sa_id_number || null,
-            vatRegistered: editedApplication.vat_registered,
-            vatNumber: editedApplication.vat_number || null,
-            monthlyRevenue: editedApplication.monthly_revenue || null,
-            physicalStores: editedApplication.physical_stores || null,
-            numberOfStores: editedApplication.number_of_stores || null,
-            supplierToRetailers: editedApplication.supplier_to_retailers || null,
-            otherMarketplaces: editedApplication.other_marketplaces || null,
-            address: editedApplication.address,
-            city: editedApplication.city,
-            province: editedApplication.province,
-            postalCode: editedApplication.postal_code,
-            uniqueProducts: editedApplication.unique_products || null,
-            primaryCategory: editedApplication.primary_category,
-            stockType: editedApplication.stock_type,
-            productDescription: editedApplication.product_description,
-            ownedBrands: editedApplication.owned_brands || null,
-            resellerBrands: editedApplication.reseller_brands || null,
-            website: editedApplication.website || null,
-            socialMedia: editedApplication.social_media || null,
-            businessSummary: editedApplication.business_summary,
-            howDidYouHear: editedApplication.how_did_you_hear,
-            agreeToTerms: editedApplication.agree_to_terms,
-          },
-        },
+      await updateApplication(selectedApplication.id, {
+        sellerRole: editedApplication.seller_role,
+        businessType: editedApplication.business_type,
+        applicantType: editedApplication.applicant_type,
+        firstName: editedApplication.first_name,
+        lastName: editedApplication.last_name,
+        email: editedApplication.email,
+        phone: editedApplication.phone,
+        landline: editedApplication.landline || null,
+        identificationType: editedApplication.identification_type,
+        businessName: editedApplication.business_name,
+        businessRegistration: editedApplication.business_registration || null,
+        saIdNumber: editedApplication.sa_id_number || null,
+        vatRegistered: editedApplication.vat_registered,
+        vatNumber: editedApplication.vat_number || null,
+        monthlyRevenue: editedApplication.monthly_revenue || null,
+        physicalStores: editedApplication.physical_stores || null,
+        numberOfStores: editedApplication.number_of_stores || null,
+        supplierToRetailers: editedApplication.supplier_to_retailers || null,
+        otherMarketplaces: editedApplication.other_marketplaces || null,
+        address: editedApplication.address,
+        city: editedApplication.city,
+        province: editedApplication.province,
+        postalCode: editedApplication.postal_code,
+        uniqueProducts: editedApplication.unique_products || null,
+        primaryCategory: editedApplication.primary_category,
+        stockType: editedApplication.stock_type,
+        productDescription: editedApplication.product_description,
+        ownedBrands: editedApplication.owned_brands || null,
+        resellerBrands: editedApplication.reseller_brands || null,
+        website: editedApplication.website || null,
+        socialMedia: editedApplication.social_media || null,
+        businessSummary: editedApplication.business_summary,
+        howDidYouHear: editedApplication.how_did_you_hear,
+        agreeToTerms: editedApplication.agree_to_terms,
       });
 
       showSuccess('Application updated successfully!');
       setIsEditingApplication(false);
-      fetchApplications();
       setIsViewModalOpen(false);
     } catch (error) {
       showError('Failed to update application');
@@ -257,12 +201,13 @@ export default function ApplicationsPage() {
   ];
 
   const filteredApplications = applications.filter(app => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!filters.searchQuery) return true;
+    const query = filters.searchQuery.toLowerCase();
+    const businessOrService = activeTab === 'seller' ? app.business_name : (app as any).primary_service;
     return (
       (app.first_name + ' ' + app.last_name).toLowerCase().includes(query) ||
       app.email.toLowerCase().includes(query) ||
-      (activeTab === 'seller' ? app.business_name : app.primary_service).toLowerCase().includes(query)
+      (businessOrService || '').toLowerCase().includes(query)
     );
   });
 
@@ -312,16 +257,16 @@ export default function ApplicationsPage() {
             <div className="md:col-span-2">
               <Input
                 placeholder={`Search ${activeTab === 'seller' ? 'sellers' : 'service providers'}...`}
-                value={searchQuery}
-                onChange={setSearchQuery}
+                value={filters.searchQuery}
+                onChange={(value) => setFilters({ searchQuery: value })}
                 icon={Search}
                 fullWidth
               />
             </div>
             <Select
               placeholder="Filter by status"
-              value={filterStatus}
-              onChange={setFilterStatus}
+              value={filters.status}
+              onChange={(value) => setFilters({ status: value })}
               options={[
                 { value: '', label: 'All Statuses' },
                 { value: 'PENDING', label: 'Pending' },
@@ -837,4 +782,3 @@ export default function ApplicationsPage() {
     </DashboardLayout>
   );
 }
-
