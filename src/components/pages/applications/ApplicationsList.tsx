@@ -10,6 +10,7 @@ interface ApplicationsListProps {
   onView: (application: any) => void;
   onApprove: (applicationId: string) => void;
   onReject: (applicationId: string) => void;
+  onOpenRejectionModal: (applicationId: string) => void;
 }
 
 export default function ApplicationsList({
@@ -18,6 +19,7 @@ export default function ApplicationsList({
   onView,
   onApprove,
   onReject,
+  onOpenRejectionModal,
 }: ApplicationsListProps) {
   const columns = [
     { key: 'first_name', label: 'First Name', sortable: true },
@@ -66,9 +68,9 @@ export default function ApplicationsList({
                 <CheckCircle size={16} />
               </button>
               <button
-                onClick={() => onReject(app.id)}
+                onClick={() => onOpenRejectionModal(app.id)}
                 className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                title="Reject"
+                title="Reject with Reason"
               >
                 <XCircle size={16} />
               </button>

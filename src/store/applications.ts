@@ -6,6 +6,7 @@ import {
   SELLER_APPLICATIONS_QUERY,
   APPROVE_SELLER_APPLICATION,
   REJECT_SELLER_APPLICATION,
+  REJECT_SELLER_APPLICATION_WITH_REASON,
   UPDATE_SELLER_APPLICATION,
 } from "../lib/api/applications";
 
@@ -61,6 +62,12 @@ interface ApplicationsState {
   isLoading: boolean;
   error: string | null;
 
+  // Rejection modal state
+  isRejectionModalOpen: boolean;
+  rejectionData: { rejectionType: string; description: string };
+  isRejecting: boolean;
+  rejectionApplicationId: string | null;
+
   // Actions
   setApplications: (applications: SellerApplication[]) => void;
   setFilters: (filters: Partial<ApplicationFilters>) => void;
@@ -68,8 +75,14 @@ interface ApplicationsState {
   fetchApplications: () => Promise<void>;
   approveApplication: (applicationId: string) => Promise<void>;
   rejectApplication: (applicationId: string) => Promise<void>;
+  rejectApplicationWithReason: (applicationId: string, rejectionData: { rejectionType: string; description: string }) => Promise<void>;
   updateApplication: (applicationId: string, data: any) => Promise<void>;
   clearError: () => void;
+
+  // Modal actions
+  openRejectionModal: (applicationId: string) => void;
+  closeRejectionModal: () => void;
+  setRejectionData: (data: Partial<{ rejectionType: string; description: string }>) => void;
 }
 
 const initialFilters: ApplicationFilters = {
@@ -94,13 +107,17 @@ export const useApplicationsStore = create<ApplicationsState>()((set, get) => ({
   filters: initialFilters,
   isLoading: false,
   error: null,
+  isRejectionModalOpen: false,
+  rejectionData: { rejectionType: '', description: '' },
+  isRejecting: false,
+  rejectionApplicationId: null,
 
   setApplications(applications) {
     set({ applications });
   },
 
   setFilters(filters) {
-    set({ filters: { ...get().filters, ...filters } });
+    set((state) => ({ filters: { ...state.filters, ...filters } }));
   },
 
   resetFilters() {
@@ -109,45 +126,28 @@ export const useApplicationsStore = create<ApplicationsState>()((set, get) => ({
 
   async fetchApplications() {
     set({ isLoading: true, error: null });
-    
     try {
       const client = getApolloClient();
       const { filters } = get();
-      
-      const { data } = await client.query({
+      type Resp = { sellerApplications: SellerApplication[] };
+      const { data } = await client.query<Resp>({
         query: SELLER_APPLICATIONS_QUERY,
-        variables: {
-          status: filters.status || undefined,
-          take: 50,
-          skip: 0,
-        },
-        fetchPolicy: 'network-only',
+        variables: { status: filters.status || undefined, take: 50, skip: 0 },
+        fetchPolicy: "network-only",
       });
-
-      const applications = data?.sellerApplications || [];
-      set({ applications, isLoading: false });
+      set({ applications: data?.sellerApplications ?? [], isLoading: false });
     } catch (err) {
-      set({ 
-        error: extractApolloErrorMessage(err), 
-        isLoading: false,
-        applications: [] 
-      });
-      throw err;
+      set({ error: extractApolloErrorMessage(err), isLoading: false });
     }
   },
 
   async approveApplication(applicationId) {
     set({ isLoading: true, error: null });
-    
     try {
       const client = getApolloClient();
-      await client.mutate({
-        mutation: APPROVE_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
-      // Refetch applications after approval
-      await get().fetchApplications();
+      await client.mutate({ mutation: APPROVE_SELLER_APPLICATION, variables: { applicationId } });
+      set({ isLoading: false });
+      get().fetchApplications();
     } catch (err) {
       set({ error: extractApolloErrorMessage(err), isLoading: false });
       throw err;
@@ -156,37 +156,40 @@ export const useApplicationsStore = create<ApplicationsState>()((set, get) => ({
 
   async rejectApplication(applicationId) {
     set({ isLoading: true, error: null });
-    
     try {
       const client = getApolloClient();
-      await client.mutate({
-        mutation: REJECT_SELLER_APPLICATION,
-        variables: { applicationId },
-      });
-
-      // Refetch applications after rejection
-      await get().fetchApplications();
+      await client.mutate({ mutation: REJECT_SELLER_APPLICATION, variables: { applicationId } });
+      set({ isLoading: false });
+      get().fetchApplications();
     } catch (err) {
       set({ error: extractApolloErrorMessage(err), isLoading: false });
       throw err;
     }
   },
 
-  async updateApplication(applicationId, data) {
-    set({ isLoading: true, error: null });
-    
+  async rejectApplicationWithReason(applicationId, rejectionData) {
+    set({ isRejecting: true, error: null });
     try {
       const client = getApolloClient();
       await client.mutate({
-        mutation: UPDATE_SELLER_APPLICATION,
-        variables: {
-          applicationId,
-          data,
-        },
+        mutation: REJECT_SELLER_APPLICATION_WITH_REASON,
+        variables: { applicationId, rejectionData },
       });
+      set({ isRejecting: false, isRejectionModalOpen: false, rejectionApplicationId: null });
+      get().fetchApplications();
+    } catch (err) {
+      set({ error: extractApolloErrorMessage(err), isRejecting: false });
+      throw err;
+    }
+  },
 
-      // Refetch applications after update
-      await get().fetchApplications();
+  async updateApplication(applicationId, data) {
+    set({ isLoading: true, error: null });
+    try {
+      const client = getApolloClient();
+      await client.mutate({ mutation: UPDATE_SELLER_APPLICATION, variables: { applicationId, data } });
+      set({ isLoading: false });
+      get().fetchApplications();
     } catch (err) {
       set({ error: extractApolloErrorMessage(err), isLoading: false });
       throw err;
@@ -195,6 +198,19 @@ export const useApplicationsStore = create<ApplicationsState>()((set, get) => ({
 
   clearError() {
     set({ error: null });
+  },
+
+  // Modal actions
+  openRejectionModal: (applicationId) => {
+    set({ isRejectionModalOpen: true, rejectionApplicationId: applicationId, rejectionData: { rejectionType: '', description: '' } });
+  },
+
+  closeRejectionModal: () => {
+    set({ isRejectionModalOpen: false, rejectionApplicationId: null, rejectionData: { rejectionType: '', description: '' } });
+  },
+
+  setRejectionData: (data) => {
+    set((state) => ({ rejectionData: { ...state.rejectionData, ...data } }));
   },
 }));
 

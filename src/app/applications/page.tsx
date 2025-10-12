@@ -9,7 +9,9 @@ import {
   ApplicationsStats,
   ApplicationsFilters,
   ApplicationDetailsModal,
+  RejectionModal,
 } from '../../components/pages/applications';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 type ApplicationType = 'seller' | 'service-provider';
 
@@ -19,6 +21,8 @@ export default function ApplicationsPage() {
   const [isEditingApplication, setIsEditingApplication] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [editedApplication, setEditedApplication] = useState<any>(null);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
   const { showSuccess, showError } = useToast();
 
   const {
@@ -29,8 +33,12 @@ export default function ApplicationsPage() {
     fetchApplications,
     approveApplication,
     rejectApplication,
+    rejectApplicationWithReason,
     updateApplication,
     clearError,
+    isRejectionModalOpen,
+    closeRejectionModal,
+    openRejectionModal,
   } = useApplicationsStore();
 
   useEffect(() => {
@@ -45,16 +53,22 @@ export default function ApplicationsPage() {
   }, [clearError]);
 
   const handleApprove = async (applicationId: string) => {
-    if (!confirm('Are you sure you want to approve this application? This will create a vendor account.')) {
-      return;
-    }
+    setApproveTargetId(applicationId);
+    setIsViewModalOpen(false);
+    setIsApproveConfirmOpen(true);
+  };
 
+  const confirmApprove = async () => {
+    if (!approveTargetId) return;
     try {
-      await approveApplication(applicationId);
+      await approveApplication(approveTargetId);
       showSuccess('Application approved successfully!');
     } catch (error) {
       showError('Failed to approve application');
       console.error('Error approving application:', error);
+    } finally {
+      setIsApproveConfirmOpen(false);
+      setApproveTargetId(null);
     }
   };
 
@@ -204,14 +218,15 @@ export default function ApplicationsPage() {
         {/* Stats */}
         <ApplicationsStats applications={applications} />
 
-        {/* Applications Table */}
-        <ApplicationsList
-          applications={filteredApplications}
-          activeTab={activeTab}
-          onView={handleViewApplication}
-          onApprove={handleApprove}
-          onReject={handleReject}
-        />
+            {/* Applications Table */}
+            <ApplicationsList
+              applications={filteredApplications}
+              activeTab={activeTab}
+              onView={handleViewApplication}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onOpenRejectionModal={openRejectionModal}
+            />
 
         {/* Application Details Modal */}
         <ApplicationDetailsModal
@@ -227,6 +242,23 @@ export default function ApplicationsPage() {
           onApprove={handleApprove}
           onReject={handleReject}
           onFieldChange={handleApplicationFieldChange}
+        />
+
+        {/* Rejection Modal */}
+        <RejectionModal
+          isOpen={isRejectionModalOpen}
+          onClose={closeRejectionModal}
+          applicationId={selectedApplication?.id || approveTargetId || null}
+        />
+
+        {/* Approve Confirm */}
+        <ConfirmModal
+          isOpen={isApproveConfirmOpen}
+          onClose={() => setIsApproveConfirmOpen(false)}
+          onConfirm={confirmApprove}
+          title="Approve Application"
+          description="Are you sure you want to approve this application? This will create a vendor account."
+          confirmText="Approve"
         />
       </div>
     </DashboardLayout>

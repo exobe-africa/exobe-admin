@@ -18,12 +18,16 @@ import {
   ViewUserModal,
   ApplicationDetailsModal,
 } from '../../components/pages/users';
+import { RejectionModal } from '../../components/pages/applications';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<'users' | 'applications'>('users');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [editedApplication, setEditedApplication] = useState<any>(null);
@@ -53,6 +57,9 @@ export default function UsersPage() {
     rejectApplication,
     updateApplication,
     clearError: clearAppsError,
+    openRejectionModal,
+    isRejectionModalOpen,
+    closeRejectionModal,
   } = useApplicationsStore();
 
   const [formData, setFormData] = useState<{ name: string; email: string; phone: string; role: Role }>({
@@ -172,36 +179,35 @@ export default function UsersPage() {
   });
 
   const handleApproveApplication = async (applicationId: string) => {
-    if (!confirm('Are you sure you want to approve this application? This will create a vendor account.')) {
-      return;
-    }
+    setApproveTargetId(applicationId);
+    // close any view modal to avoid stacking UX, then open confirm
+    setIsViewModalOpen(false);
+    setIsApproveConfirmOpen(true);
+  };
 
+  const confirmApprove = async () => {
+    if (!approveTargetId) return;
     try {
-      await approveApplication(applicationId);
+      await approveApplication(approveTargetId);
       showSuccess('Application approved successfully!');
     } catch (error) {
       showError('Failed to approve application');
       console.error('Error approving application:', error);
+    } finally {
+      setIsApproveConfirmOpen(false);
+      setApproveTargetId(null);
     }
   };
 
-  const handleRejectApplication = async (applicationId: string) => {
-    if (!confirm('Are you sure you want to reject this application?')) {
-      return;
-    }
-
-    try {
-      await rejectApplication(applicationId);
-      showSuccess('Application rejected successfully!');
-    } catch (error) {
-      showError('Failed to reject application');
-      console.error('Error rejecting application:', error);
-    }
+  const handleOpenRejection = (applicationId: string) => {
+    // Close the view modal first to avoid stacking
+    setIsViewModalOpen(false);
+    openRejectionModal(applicationId);
   };
 
   const handleViewApplication = (application: any) => {
     setSelectedApplication(application);
-    setEditedApplication({...application});
+    setEditedApplication({ ...application });
     setIsEditingApplication(false);
     setIsViewModalOpen(true);
   };
@@ -211,12 +217,12 @@ export default function UsersPage() {
   };
 
   const handleCancelEditApplication = () => {
-    setEditedApplication({...selectedApplication});
+    setEditedApplication({ ...selectedApplication });
     setIsEditingApplication(false);
   };
 
   const handleApplicationFieldChange = (field: string, value: any) => {
-    setEditedApplication({...editedApplication, [field]: value});
+    setEditedApplication({ ...editedApplication, [field]: value });
   };
 
   const handleSaveApplication = async () => {
@@ -356,7 +362,8 @@ export default function UsersPage() {
             searchQuery={appFilters.searchQuery}
             onView={handleViewApplication}
             onApprove={handleApproveApplication}
-            onReject={handleRejectApplication}
+            onReject={handleOpenRejection}
+            onOpenRejectionModal={handleOpenRejection}
           />
         )}
 
@@ -393,10 +400,27 @@ export default function UsersPage() {
             onSave={handleSaveApplication}
             onCancel={handleCancelEditApplication}
             onApprove={handleApproveApplication}
-            onReject={handleRejectApplication}
+            onReject={handleOpenRejection}
             onFieldChange={handleApplicationFieldChange}
           />
         )}
+
+        {/* Rejection Modal - ensure not stacked */}
+        <RejectionModal
+          isOpen={isRejectionModalOpen}
+          onClose={closeRejectionModal}
+          applicationId={selectedApplication?.id || approveTargetId || null}
+        />
+
+        {/* Approve Confirm Modal */}
+        <ConfirmModal
+          isOpen={isApproveConfirmOpen}
+          onClose={() => setIsApproveConfirmOpen(false)}
+          onConfirm={confirmApprove}
+          title="Approve Application"
+          description="Are you sure you want to approve this application? This will create a vendor account."
+          confirmText="Approve"
+        />
       </div>
     </DashboardLayout>
   );

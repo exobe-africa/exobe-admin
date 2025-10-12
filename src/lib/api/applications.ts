@@ -76,3 +76,9 @@ export const UPDATE_SELLER_APPLICATION = gql`
     updateSellerApplication(applicationId: $applicationId, data: $data)
   }
 `;
+
+export const REJECT_SELLER_APPLICATION_WITH_REASON = gql`
+  mutation RejectSellerApplicationWithReason($applicationId: String!, $rejectionData: RejectApplicationInput!) {
+    rejectSellerApplication(applicationId: $applicationId, rejectionData: $rejectionData)
+  }
+`;

@@ -4,4 +4,5 @@ export { default as ApplicationsFilters } from './ApplicationsFilters';
 export { default as ApplicationDetailsModal } from './ApplicationDetailsModal';
 export { default as SellerApplicationDetails } from './SellerApplicationDetails';
 export { default as ServiceProviderApplicationDetails } from './ServiceProviderApplicationDetails';
+export { default as RejectionModal } from './RejectionModal';
 
