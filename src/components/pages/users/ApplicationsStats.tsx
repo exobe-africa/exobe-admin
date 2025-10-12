@@ -2,9 +2,23 @@
 
 interface ApplicationsStatsProps {
   applications: any[];
+  isLoading?: boolean;
 }
 
-export default function ApplicationsStats({ applications }: ApplicationsStatsProps) {
+import StatCardSkeleton from '../../common/StatCardSkeleton';
+
+export default function ApplicationsStats({ applications, isLoading = false }: ApplicationsStatsProps) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">

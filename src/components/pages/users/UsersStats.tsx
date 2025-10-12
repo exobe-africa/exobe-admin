@@ -12,11 +12,25 @@ type UserRow = {
   created_at: string;
 };
 
+import StatCardSkeleton from '../../common/StatCardSkeleton';
+
 interface UsersStatsProps {
   users: UserRow[];
+  isLoading?: boolean;
 }
 
-export default function UsersStats({ users }: UsersStatsProps) {
+export default function UsersStats({ users, isLoading = false }: UsersStatsProps) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">

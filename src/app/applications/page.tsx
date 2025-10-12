@@ -12,6 +12,7 @@ import {
   RejectionModal,
 } from '../../components/pages/applications';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TableSkeleton from '../../components/common/TableSkeleton';
 
 type ApplicationType = 'seller' | 'service-provider';
 
@@ -216,17 +217,21 @@ export default function ApplicationsPage() {
         />
 
         {/* Stats */}
-        <ApplicationsStats applications={applications} />
+        <ApplicationsStats applications={applications} isLoading={isLoading} />
 
             {/* Applications Table */}
-            <ApplicationsList
-              applications={filteredApplications}
-              activeTab={activeTab}
-              onView={handleViewApplication}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onOpenRejectionModal={openRejectionModal}
-            />
+            {isLoading ? (
+              <TableSkeleton rows={8} columns={7} />
+            ) : (
+              <ApplicationsList
+                applications={filteredApplications}
+                activeTab={activeTab}
+                onView={handleViewApplication}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onOpenRejectionModal={openRejectionModal}
+              />
+            )}
 
         {/* Application Details Modal */}
         <ApplicationDetailsModal

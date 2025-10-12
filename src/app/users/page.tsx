@@ -20,6 +20,7 @@ import {
 } from '../../components/pages/users';
 import { RejectionModal } from '../../components/pages/applications';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import TableSkeleton from '../../components/common/TableSkeleton';
 
 export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<'users' | 'applications'>('users');
@@ -343,28 +344,36 @@ export default function UsersPage() {
 
         {/* Stats */}
         {activeTab === 'users' ? (
-          <UsersStats users={users} />
+          <UsersStats users={users} isLoading={usersLoading} />
         ) : (
-          <ApplicationsStats applications={applications} />
+          <ApplicationsStats applications={applications} isLoading={appsLoading} />
         )}
 
         {/* Table */}
         {activeTab === 'users' ? (
-          <UsersList
-            users={filteredUsers}
-            onView={handleViewUser}
-            onEdit={handleEditUser}
-            onDelete={handleDeleteUser}
-          />
+          usersLoading ? (
+            <TableSkeleton rows={8} columns={6} />
+          ) : (
+            <UsersList
+              users={filteredUsers}
+              onView={handleViewUser}
+              onEdit={handleEditUser}
+              onDelete={handleDeleteUser}
+            />
+          )
         ) : (
-          <ApplicationsList
-            applications={applications}
-            searchQuery={appFilters.searchQuery}
-            onView={handleViewApplication}
-            onApprove={handleApproveApplication}
-            onReject={handleOpenRejection}
-            onOpenRejectionModal={handleOpenRejection}
-          />
+          appsLoading ? (
+            <TableSkeleton rows={8} columns={7} />
+          ) : (
+            <ApplicationsList
+              applications={applications}
+              searchQuery={appFilters.searchQuery}
+              onView={handleViewApplication}
+              onApprove={handleApproveApplication}
+              onReject={handleOpenRejection}
+              onOpenRejectionModal={handleOpenRejection}
+            />
+          )
         )}
 
         {/* Modals */}
