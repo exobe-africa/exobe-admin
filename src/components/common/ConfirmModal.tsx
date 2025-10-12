@@ -37,8 +37,8 @@ export default function ConfirmModal({
           <Button variant="ghost" onClick={onClose} disabled={isBusy}>
             {cancelText}
           </Button>
-          <Button variant={variant} onClick={onConfirm} disabled={isBusy}>
-            {isBusy ? 'Please wait...' : confirmText}
+          <Button variant={variant} onClick={onConfirm} disabled={isBusy} loading={isBusy}>
+            {confirmText}
           </Button>
         </div>
       }

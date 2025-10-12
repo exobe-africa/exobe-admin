@@ -24,6 +24,7 @@ export default function ApplicationsPage() {
   const [editedApplication, setEditedApplication] = useState<any>(null);
   const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
   const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
   const { showSuccess, showError } = useToast();
 
   const {
@@ -62,12 +63,14 @@ export default function ApplicationsPage() {
   const confirmApprove = async () => {
     if (!approveTargetId) return;
     try {
+      setIsApproving(true);
       await approveApplication(approveTargetId);
       showSuccess('Application approved successfully!');
     } catch (error) {
       showError('Failed to approve application');
       console.error('Error approving application:', error);
     } finally {
+      setIsApproving(false);
       setIsApproveConfirmOpen(false);
       setApproveTargetId(null);
     }
@@ -259,11 +262,12 @@ export default function ApplicationsPage() {
         {/* Approve Confirm */}
         <ConfirmModal
           isOpen={isApproveConfirmOpen}
-          onClose={() => setIsApproveConfirmOpen(false)}
+          onClose={() => !isApproving && setIsApproveConfirmOpen(false)}
           onConfirm={confirmApprove}
           title="Approve Application"
           description="Are you sure you want to approve this application? This will create a vendor account."
           confirmText="Approve"
+          isBusy={isApproving}
         />
       </div>
     </DashboardLayout>
