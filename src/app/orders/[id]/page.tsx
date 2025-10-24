@@ -191,7 +191,6 @@ export default function OrderDetailPage() {
               <div className="divide-y divide-gray-100">
                 {Object.entries(vendorGroups).map(([vendorId, { name, items }]) => (
                   <div key={vendorId} className="p-6">
-                    {/* Vendor Header */}
                     <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
                       <div className="w-10 h-10 rounded-full bg-[#C8102E] flex items-center justify-center text-white font-bold">
                         {name.charAt(0).toUpperCase()}
@@ -202,16 +201,23 @@ export default function OrderDetailPage() {
                       </div>
                     </div>
 
-                    {/* Vendor Items */}
                     <div className="space-y-4">
                       {items.map((item) => {
                         const imageUrl = item.product_variant?.media?.[0]?.url || item.product?.media?.[0]?.url;
+                        const ecommerceBase = process.env.NEXT_PUBLIC_ECOMMERCE_URL || process.env.NEXT_PUBLIC_ECOMMERCE || 'https://exobe-ecommerce.vercel.app';
+                        const productPath = item.product?.id ? `/product/${item.product.id}` : '';
+                        const productUrl = productPath ? `${ecommerceBase}${productPath}` : undefined;
                         return (
                           <div key={item.id} className="flex gap-4">
-                            {/* Product Image */}
                             <div className="w-20 h-20 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
                               {imageUrl ? (
-                                <img src={imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                                productUrl ? (
+                                  <a href={productUrl} target="_blank" rel="noopener noreferrer">
+                                    <img src={imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                                  </a>
+                                ) : (
+                                  <img src={imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                                )
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <Package size={24} className="text-gray-400" />
@@ -219,9 +225,14 @@ export default function OrderDetailPage() {
                               )}
                             </div>
 
-                            {/* Product Details */}
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-gray-900 truncate">{item.product?.title || item.title}</h4>
+                              {productUrl ? (
+                                <a href={productUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-900 truncate hover:underline">
+                                  {item.product?.title || item.title}
+                                </a>
+                              ) : (
+                                <h4 className="font-semibold text-gray-900 truncate">{item.product?.title || item.title}</h4>
+                              )}
                               <p className="text-sm text-gray-600 mt-1">
                                 {item.product_variant?.title || 'Default Variant'}
                               </p>
@@ -239,7 +250,6 @@ export default function OrderDetailPage() {
                               )}
                             </div>
 
-                            {/* Price Details */}
                             <div className="text-right">
                               <p className="font-semibold text-gray-900">{centsToRand(item.price_cents)}</p>
                               <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
@@ -254,7 +264,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Order Timeline */}
             {currentOrder.events && currentOrder.events.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="p-6 border-b border-gray-100">
@@ -296,9 +305,7 @@ export default function OrderDetailPage() {
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Order Summary */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100">
               <div className="p-6 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
@@ -362,7 +369,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Customer Information */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100">
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -394,7 +400,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Shipping Address */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100">
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -416,7 +421,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
 
-            {/* Billing Address */}
             {currentOrder.billing_address && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div className="p-6 border-b border-gray-100">
@@ -443,7 +447,6 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Cancel Order Modal */}
       <Modal
         isOpen={showCancelModal}
         onClose={() => setShowCancelModal(false)}

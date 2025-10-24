@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
-import { Search, Eye, Truck, CheckCircle, XCircle, Download, AlertTriangle } from 'lucide-react';
-import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
+import { Download, AlertTriangle, CheckCircle, Truck, XCircle } from 'lucide-react';
+import OrdersFilters from '../../components/orders/OrdersFilters';
+import OrdersStats from '../../components/orders/OrdersStats';
+import OrdersTable from '../../components/orders/OrdersTable';
 import { useOrdersStore, type OrderRow, type OrderStatus } from '../../store';
 import OrdersListSkeleton from '../../components/skeletons/OrdersListSkeleton';
 
@@ -63,122 +63,7 @@ export default function OrdersPage() {
     }
   }
 
-  const columns = [
-    { 
-      key: 'order_number', 
-      label: 'Order #', 
-      sortable: true,
-      render: (order: any) => (
-        <button
-          onClick={() => router.push(`/orders/${order.id}`)}
-          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-        >
-          {order.order_number}
-        </button>
-      ),
-    },
-    {
-      key: 'email',
-      label: 'Customer',
-      sortable: true,
-    },
-    {
-      key: 'total_cents',
-      label: 'Total',
-      sortable: true,
-      render: (order: any) => centsToRand(order.total_cents),
-    },
-    {
-      key: 'items',
-      label: 'Items',
-      sortable: true,
-      render: (order: any) => (order.items || []).reduce((sum: number, it: any) => sum + (it?.quantity || 0), 0),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (order: any) => (
-        <Badge variant={statusVariant(order.status)}>
-          {statusLabel(order.status)}
-        </Badge>
-      ),
-    },
-    {
-      key: 'payment_status',
-      label: 'Payment',
-      render: (order: any) => (
-        <Badge variant={String(order.payment_status).toUpperCase() === 'PAID' ? 'success' : 'warning'}>
-          {String(order.payment_status).toUpperCase() === 'REFUNDED' ? 'Refunded' : (String(order.payment_status).charAt(0).toUpperCase() + String(order.payment_status).slice(1).toLowerCase())}
-        </Badge>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (order: any) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/orders/${order.id}`);
-            }}
-            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-            title="View Details"
-          >
-            <Eye size={16} />
-          </button>
-          {String(order.status).toUpperCase() === 'PENDING' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUpdateStatus(order.id, 'PROCESSING');
-              }}
-              className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-              title="Process Order"
-            >
-              <CheckCircle size={16} />
-            </button>
-          )}
-          {String(order.status).toUpperCase() === 'PROCESSING' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUpdateStatus(order.id, 'SHIPPED');
-              }}
-              className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-              title="Mark as Shipped"
-            >
-              <Truck size={16} />
-            </button>
-          )}
-          {String(order.status).toUpperCase() === 'SHIPPED' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUpdateStatus(order.id, 'FULFILLED');
-              }}
-              className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-              title="Mark as Delivered"
-            >
-              <CheckCircle size={16} />
-            </button>
-          )}
-          {(String(order.status).toUpperCase() === 'PENDING' || String(order.status).toUpperCase() === 'PROCESSING') && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCancelOrder(order.id);
-              }}
-              className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-              title="Cancel Order"
-            >
-              <XCircle size={16} />
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const columns: never[] = [];
 
   const handleViewOrder = (order: OrderRow) => {
     setSelectedOrder(order);
@@ -239,78 +124,32 @@ export default function OrdersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Management</h1>
           <p className="text-gray-600">Track and manage all orders across the platform</p>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                placeholder="Search by order # or email..."
-                value={filters.searchQuery}
-                onChange={(v) => setFilters({ searchQuery: v })}
-                icon={Search}
-                fullWidth
-              />
-            </div>
-            <Select
-              placeholder="Filter by status"
-              value={filters.status}
-              onChange={(v) => setFilters({ status: v })}
-              options={[
-                { value: '', label: 'All Statuses' },
-                ...statuses.map(status => ({ value: status, label: statusLabel(status) }))
-              ]}
-              fullWidth
-            />
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Total Orders</p>
-            <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Pending</p>
-            <p className="text-2xl font-bold text-gray-600">
-              {orders.filter(o => String(o.status).toUpperCase() === 'PENDING').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Processing</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {orders.filter(o => String(o.status).toUpperCase() === 'PROCESSING').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Shipped</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {orders.filter(o => String(o.status).toUpperCase() === 'SHIPPED').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Delivered</p>
-            <p className="text-2xl font-bold text-green-600">
-              {orders.filter(o => String(o.status).toUpperCase() === 'FULFILLED').length}
-            </p>
-          </div>
-        </div>
-
-        {/* Orders Table */}
-        <DataTable
-          columns={columns}
-          data={filteredOrders}
-          keyExtractor={(order) => order.id}
-          emptyMessage={isLoading ? 'Loading orders...' : 'No orders found'}
+        <OrdersFilters
+          filters={filters}
+          setFilters={setFilters}
+          statuses={statuses.map((s) => statusLabel(s))}
         />
 
-        {/* View Order Modal */}
+        <OrdersStats
+          total={orders.length}
+          pending={orders.filter(o => String(o.status).toUpperCase() === 'PENDING').length}
+          processing={orders.filter(o => String(o.status).toUpperCase() === 'PROCESSING').length}
+          shipped={orders.filter(o => String(o.status).toUpperCase() === 'SHIPPED').length}
+          delivered={orders.filter(o => String(o.status).toUpperCase() === 'FULFILLED').length}
+        />
+
+        <OrdersTable
+          data={filteredOrders}
+          onView={(o) => router.push(`/orders/${o.id}`)}
+          onUpdateStatus={(id, status) => handleUpdateStatus(id, status as any)}
+          onCancel={(id) => handleCancelOrder(id)}
+        />
+
         <Modal
           isOpen={isViewModalOpen}
           onClose={() => {
@@ -415,7 +254,6 @@ export default function OrdersPage() {
           )}
         </Modal>
 
-        {/* Cancel Order Modal */}
         <Modal
           isOpen={showCancelModal}
           onClose={() => setShowCancelModal(false)}
@@ -441,7 +279,6 @@ export default function OrdersPage() {
           }
         >
           <div className="space-y-4">
-            {/* Warning Alert */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
               <AlertTriangle className="text-red-600 flex-shrink-0" size={20} />
               <div>
@@ -453,7 +290,6 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Order Details */}
             {orderToCancel && (
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-2">Order Details</h4>
@@ -479,7 +315,6 @@ export default function OrdersPage() {
               </div>
             )}
 
-            {/* Reason Input */}
             <div>
               <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-900 mb-2">
                 Cancellation Reason <span className="text-red-600">*</span>
