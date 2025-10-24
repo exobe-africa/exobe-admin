@@ -146,7 +146,7 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Quick Actions */}
-        {(String(currentOrder.status).toUpperCase() === 'PENDING' || String(currentOrder.status).toUpperCase() === 'PROCESSING') && (
+        {(String(currentOrder.status).toUpperCase() === 'PENDING' || String(currentOrder.status).toUpperCase() === 'PROCESSING' || String(currentOrder.status).toUpperCase() === 'SHIPPED') && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -162,6 +162,11 @@ export default function OrderDetailPage() {
                 {String(currentOrder.status).toUpperCase() === 'PROCESSING' && (
                   <Button icon={Truck} onClick={() => handleUpdateStatus('SHIPPED')}>
                     Mark as Shipped
+                  </Button>
+                )}
+                {String(currentOrder.status).toUpperCase() === 'SHIPPED' && (
+                  <Button icon={CheckCircle} onClick={() => handleUpdateStatus('FULFILLED')}>
+                    Mark as Delivered
                   </Button>
                 )}
                 <Button variant="secondary" icon={XCircle} onClick={handleOpenCancelModal}>

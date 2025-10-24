@@ -151,6 +151,18 @@ export default function OrdersPage() {
               <Truck size={16} />
             </button>
           )}
+          {String(order.status).toUpperCase() === 'SHIPPED' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpdateStatus(order.id, 'FULFILLED');
+              }}
+              className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+              title="Mark as Delivered"
+            >
+              <CheckCircle size={16} />
+            </button>
+          )}
           {(String(order.status).toUpperCase() === 'PENDING' || String(order.status).toUpperCase() === 'PROCESSING') && (
             <button
               onClick={(e) => {
@@ -381,6 +393,14 @@ export default function OrdersPage() {
                       setIsViewModalOpen(false);
                     }}>
                       Mark as Shipped
+                    </Button>
+                  )}
+                  {String(selectedOrder.status).toUpperCase() === 'SHIPPED' && (
+                    <Button icon={CheckCircle} onClick={async () => {
+                      await handleUpdateStatus(selectedOrder.id, 'FULFILLED');
+                      setIsViewModalOpen(false);
+                    }}>
+                      Mark as Delivered
                     </Button>
                   )}
                   <Button variant="secondary" icon={Download} onClick={() => {
