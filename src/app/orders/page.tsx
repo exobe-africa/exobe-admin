@@ -1,60 +1,110 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
-import { ShoppingCart, Search, Eye, Truck, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Search, Eye, Truck, CheckCircle, XCircle, Download } from 'lucide-react';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-
-// Mock data
-const mockOrders = [
-  { id: 'ORD-2025-001', customer: 'John Doe', email: 'john@example.com', date: '2025-10-10', total: 'R 3,499', items: 3, status: 'Pending', payment: 'Paid', shipping: 'Johannesburg' },
-  { id: 'ORD-2025-002', customer: 'Jane Smith', email: 'jane@example.com', date: '2025-10-10', total: 'R 1,299', items: 1, status: 'Processing', payment: 'Paid', shipping: 'Cape Town' },
-  { id: 'ORD-2025-003', customer: 'Mike Johnson', email: 'mike@example.com', date: '2025-10-09', total: 'R 5,678', items: 5, status: 'Shipped', payment: 'Paid', shipping: 'Durban' },
-  { id: 'ORD-2025-004', customer: 'Sarah Williams', email: 'sarah@example.com', date: '2025-10-09', total: 'R 2,345', items: 2, status: 'Delivered', payment: 'Paid', shipping: 'Pretoria' },
-  { id: 'ORD-2025-005', customer: 'Tom Brown', email: 'tom@example.com', date: '2025-10-08', total: 'R 899', items: 1, status: 'Cancelled', payment: 'Refunded', shipping: 'Port Elizabeth' },
-  { id: 'ORD-2025-006', customer: 'Emily Davis', email: 'emily@example.com', date: '2025-10-08', total: 'R 4,567', items: 4, status: 'Processing', payment: 'Paid', shipping: 'Johannesburg' },
-  { id: 'ORD-2025-007', customer: 'David Wilson', email: 'david@example.com', date: '2025-10-07', total: 'R 1,899', items: 2, status: 'Delivered', payment: 'Paid', shipping: 'Cape Town' },
-];
+import { useOrdersStore, type OrderRow, type OrderStatus } from '../../store';
+import OrdersListSkeleton from '../../components/skeletons/OrdersListSkeleton';
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState(mockOrders);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const router = useRouter();
+  const {
+    orders,
+    isLoading,
+    filters,
+    setFilters,
+    fetchOrders,
+    updateOrderStatus,
+    cancelOrder,
+  } = useOrdersStore();
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
+
+  useEffect(() => {
+    fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function centsToRand(cents: number): string {
+    const rands = (cents || 0) / 100;
+    return `R ${rands.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  function statusLabel(status: string): string {
+    switch ((status || '').toUpperCase()) {
+      case 'PENDING': return 'Pending';
+      case 'PROCESSING': return 'Processing';
+      case 'SHIPPED': return 'Shipped';
+      case 'FULFILLED': return 'Delivered';
+      case 'CANCELLED': return 'Cancelled';
+      default: return status || 'Unknown';
+    }
+  }
+
+  function statusVariant(status: string): 'success' | 'info' | 'warning' | 'danger' | 'neutral' {
+    switch ((status || '').toUpperCase()) {
+      case 'FULFILLED': return 'success';
+      case 'SHIPPED': return 'info';
+      case 'PROCESSING': return 'warning';
+      case 'CANCELLED': return 'danger';
+      default: return 'neutral';
+    }
+  }
 
   const columns = [
-    { key: 'id', label: 'Order ID', sortable: true },
-    { key: 'customer', label: 'Customer', sortable: true },
-    { key: 'date', label: 'Date', sortable: true },
-    { key: 'total', label: 'Total', sortable: true },
-    { key: 'items', label: 'Items', sortable: true },
+    { 
+      key: 'order_number', 
+      label: 'Order #', 
+      sortable: true,
+      render: (order: any) => (
+        <button
+          onClick={() => router.push(`/orders/${order.id}`)}
+          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+        >
+          {order.order_number}
+        </button>
+      ),
+    },
+    {
+      key: 'email',
+      label: 'Customer',
+      sortable: true,
+    },
+    {
+      key: 'total_cents',
+      label: 'Total',
+      sortable: true,
+      render: (order: any) => centsToRand(order.total_cents),
+    },
+    {
+      key: 'items',
+      label: 'Items',
+      sortable: true,
+      render: (order: any) => (order.items || []).reduce((sum: number, it: any) => sum + (it?.quantity || 0), 0),
+    },
     {
       key: 'status',
       label: 'Status',
       render: (order: any) => (
-        <Badge variant={
-          order.status === 'Delivered' ? 'success' :
-          order.status === 'Shipped' ? 'info' :
-          order.status === 'Processing' ? 'warning' :
-          order.status === 'Cancelled' ? 'danger' :
-          'neutral'
-        }>
-          {order.status}
+        <Badge variant={statusVariant(order.status)}>
+          {statusLabel(order.status)}
         </Badge>
       ),
     },
     {
-      key: 'payment',
+      key: 'payment_status',
       label: 'Payment',
       render: (order: any) => (
-        <Badge variant={order.payment === 'Paid' ? 'success' : 'warning'}>
-          {order.payment}
+        <Badge variant={String(order.payment_status).toUpperCase() === 'PAID' ? 'success' : 'warning'}>
+          {String(order.payment_status).toUpperCase() === 'REFUNDED' ? 'Refunded' : (String(order.payment_status).charAt(0).toUpperCase() + String(order.payment_status).slice(1).toLowerCase())}
         </Badge>
       ),
     },
@@ -64,33 +114,45 @@ export default function OrdersPage() {
       render: (order: any) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleViewOrder(order)}
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/orders/${order.id}`);
+            }}
             className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
             title="View Details"
           >
             <Eye size={16} />
           </button>
-          {order.status === 'Pending' && (
+          {String(order.status).toUpperCase() === 'PENDING' && (
             <button
-              onClick={() => handleUpdateStatus(order.id, 'Processing')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpdateStatus(order.id, 'PROCESSING');
+              }}
               className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
               title="Process Order"
             >
               <CheckCircle size={16} />
             </button>
           )}
-          {order.status === 'Processing' && (
+          {String(order.status).toUpperCase() === 'PROCESSING' && (
             <button
-              onClick={() => handleUpdateStatus(order.id, 'Shipped')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUpdateStatus(order.id, 'SHIPPED');
+              }}
               className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
               title="Mark as Shipped"
             >
               <Truck size={16} />
             </button>
           )}
-          {(order.status === 'Pending' || order.status === 'Processing') && (
+          {(String(order.status).toUpperCase() === 'PENDING' || String(order.status).toUpperCase() === 'PROCESSING') && (
             <button
-              onClick={() => handleCancelOrder(order.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelOrder(order.id);
+              }}
               className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
               title="Cancel Order"
             >
@@ -102,29 +164,40 @@ export default function OrdersPage() {
     },
   ];
 
-  const handleViewOrder = (order: any) => {
+  const handleViewOrder = (order: OrderRow) => {
     setSelectedOrder(order);
     setIsViewModalOpen(true);
   };
 
-  const handleUpdateStatus = (orderId: string, newStatus: string) => {
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    await updateOrderStatus(orderId, newStatus);
   };
 
-  const handleCancelOrder = (orderId: string) => {
+  const handleCancelOrder = async (orderId: string) => {
     if (confirm('Are you sure you want to cancel this order?')) {
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'Cancelled', payment: 'Refunded' } : o));
+      await cancelOrder(orderId);
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.customer.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = !filterStatus || order.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = useMemo(() => {
+    const q = (filters.searchQuery || '').toLowerCase();
+    const s = (filters.status || '').toUpperCase();
+    return (orders || []).filter((o) => {
+      const matchesSearch = !q || (o.order_number?.toLowerCase().includes(q) || o.email?.toLowerCase().includes(q));
+      const matchesStatus = !s || String(o.status).toUpperCase() === s;
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, filters.searchQuery, filters.status]);
 
-  const statuses = Array.from(new Set(orders.map(o => o.status)));
+  const statuses = useMemo(() => Array.from(new Set((orders || []).map(o => String(o.status).toUpperCase()))), [orders]);
+
+  if (isLoading && orders.length === 0) {
+    return (
+      <DashboardLayout>
+        <OrdersListSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -140,20 +213,20 @@ export default function OrdersPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <Input
-                placeholder="Search by order ID or customer name..."
-                value={searchQuery}
-                onChange={setSearchQuery}
+                placeholder="Search by order # or email..."
+                value={filters.searchQuery}
+                onChange={(v) => setFilters({ searchQuery: v })}
                 icon={Search}
                 fullWidth
               />
             </div>
             <Select
               placeholder="Filter by status"
-              value={filterStatus}
-              onChange={setFilterStatus}
+              value={filters.status}
+              onChange={(v) => setFilters({ status: v })}
               options={[
                 { value: '', label: 'All Statuses' },
-                ...statuses.map(status => ({ value: status, label: status }))
+                ...statuses.map(status => ({ value: status, label: statusLabel(status) }))
               ]}
               fullWidth
             />
@@ -169,25 +242,25 @@ export default function OrdersPage() {
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Pending</p>
             <p className="text-2xl font-bold text-gray-600">
-              {orders.filter(o => o.status === 'Pending').length}
+              {orders.filter(o => String(o.status).toUpperCase() === 'PENDING').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Processing</p>
             <p className="text-2xl font-bold text-yellow-600">
-              {orders.filter(o => o.status === 'Processing').length}
+              {orders.filter(o => String(o.status).toUpperCase() === 'PROCESSING').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Shipped</p>
             <p className="text-2xl font-bold text-blue-600">
-              {orders.filter(o => o.status === 'Shipped').length}
+              {orders.filter(o => String(o.status).toUpperCase() === 'SHIPPED').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Delivered</p>
             <p className="text-2xl font-bold text-green-600">
-              {orders.filter(o => o.status === 'Delivered').length}
+              {orders.filter(o => String(o.status).toUpperCase() === 'FULFILLED').length}
             </p>
           </div>
         </div>
@@ -197,7 +270,7 @@ export default function OrdersPage() {
           columns={columns}
           data={filteredOrders}
           keyExtractor={(order) => order.id}
-          emptyMessage="No orders found"
+          emptyMessage={isLoading ? 'Loading orders...' : 'No orders found'}
         />
 
         {/* View Order Modal */}
@@ -214,21 +287,14 @@ export default function OrdersPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{selectedOrder.id}</h3>
-                  <p className="text-sm text-gray-600">{selectedOrder.date}</p>
+                  <h3 className="text-xl font-bold text-gray-900">{selectedOrder.order_number}</h3>
                 </div>
                 <div className="flex gap-2">
-                  <Badge variant={
-                    selectedOrder.status === 'Delivered' ? 'success' :
-                    selectedOrder.status === 'Shipped' ? 'info' :
-                    selectedOrder.status === 'Processing' ? 'warning' :
-                    selectedOrder.status === 'Cancelled' ? 'danger' :
-                    'neutral'
-                  }>
-                    {selectedOrder.status}
+                  <Badge variant={statusVariant(selectedOrder.status)}>
+                    {statusLabel(selectedOrder.status)}
                   </Badge>
-                  <Badge variant={selectedOrder.payment === 'Paid' ? 'success' : 'warning'}>
-                    {selectedOrder.payment}
+                  <Badge variant={String(selectedOrder.payment_status).toUpperCase() === 'PAID' ? 'success' : 'warning'}>
+                    {String(selectedOrder.payment_status).toUpperCase() === 'REFUNDED' ? 'Refunded' : (String(selectedOrder.payment_status).charAt(0).toUpperCase() + String(selectedOrder.payment_status).slice(1).toLowerCase())}
                   </Badge>
                 </div>
               </div>
@@ -237,16 +303,12 @@ export default function OrdersPage() {
                 <h4 className="font-bold text-gray-900 mb-3">Customer Information</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Name</p>
-                    <p className="font-medium text-gray-900">{selectedOrder.customer}</p>
-                  </div>
-                  <div>
                     <p className="text-sm text-gray-600 mb-1">Email</p>
                     <p className="font-medium text-gray-900">{selectedOrder.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Shipping Location</p>
-                    <p className="font-medium text-gray-900">{selectedOrder.shipping}</p>
+                    <p className="font-medium text-gray-900">{selectedOrder.shipping_address?.city || selectedOrder.shipping_address?.province || '-'}</p>
                   </div>
                 </div>
               </div>
@@ -256,11 +318,23 @@ export default function OrdersPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Items</span>
-                    <span className="font-medium">{selectedOrder.items}</span>
+                    <span className="font-medium">{(selectedOrder.items || []).reduce((s, it) => s + (it?.quantity || 0), 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-medium">{centsToRand(selectedOrder.subtotal_cents)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Shipping</span>
+                    <span className="font-medium">{centsToRand(selectedOrder.shipping_cents)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">VAT</span>
+                    <span className="font-medium">{centsToRand(selectedOrder.vat_cents)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span className="text-[#C8102E]">{selectedOrder.total}</span>
+                    <span className="text-[#C8102E]">{centsToRand(selectedOrder.total_cents)}</span>
                   </div>
                 </div>
               </div>
@@ -268,23 +342,26 @@ export default function OrdersPage() {
               <div className="border-t pt-4">
                 <h4 className="font-bold text-gray-900 mb-3">Quick Actions</h4>
                 <div className="flex gap-2">
-                  {selectedOrder.status === 'Pending' && (
-                    <Button icon={CheckCircle} onClick={() => {
-                      handleUpdateStatus(selectedOrder.id, 'Processing');
+                  {String(selectedOrder.status).toUpperCase() === 'PENDING' && (
+                    <Button icon={CheckCircle} onClick={async () => {
+                      await handleUpdateStatus(selectedOrder.id, 'PROCESSING');
                       setIsViewModalOpen(false);
                     }}>
                       Process Order
                     </Button>
                   )}
-                  {selectedOrder.status === 'Processing' && (
-                    <Button icon={Truck} onClick={() => {
-                      handleUpdateStatus(selectedOrder.id, 'Shipped');
+                  {String(selectedOrder.status).toUpperCase() === 'PROCESSING' && (
+                    <Button icon={Truck} onClick={async () => {
+                      await handleUpdateStatus(selectedOrder.id, 'SHIPPED');
                       setIsViewModalOpen(false);
                     }}>
                       Mark as Shipped
                     </Button>
                   )}
-                  <Button variant="secondary" icon={Download}>
+                  <Button variant="secondary" icon={Download} onClick={() => {
+                    const url = selectedOrder.invoice_url || selectedOrder.receipt_url;
+                    if (url) window.open(url, '_blank');
+                  }}>
                     Download Invoice
                   </Button>
                 </div>
