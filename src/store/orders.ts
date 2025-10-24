@@ -137,8 +137,8 @@ interface OrdersState {
 
   fetchOrders: () => Promise<void>;
   fetchOrderById: (orderId: string) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
-  cancelOrder: (orderId: string) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, description?: string) => Promise<void>;
+  cancelOrder: (orderId: string, reason: string) => Promise<void>;
 }
 
 const initialFilters: OrderFilters = {
@@ -212,13 +212,13 @@ export const useOrdersStore = create<OrdersState>()((set, get) => ({
     }
   },
 
-  async updateOrderStatus(orderId, status) {
+  async updateOrderStatus(orderId, status, description) {
     set({ isLoading: true, error: null });
     try {
       const client = getApolloClient();
       await client.mutate({
         mutation: UPDATE_ORDER_MUTATION,
-        variables: { orderId, input: { status } },
+        variables: { orderId, input: { status, description } },
       });
       set({ isLoading: false });
       await get().fetchOrders();
@@ -228,13 +228,13 @@ export const useOrdersStore = create<OrdersState>()((set, get) => ({
     }
   },
 
-  async cancelOrder(orderId) {
+  async cancelOrder(orderId, reason) {
     set({ isLoading: true, error: null });
     try {
       const client = getApolloClient();
       await client.mutate({
         mutation: UPDATE_ORDER_MUTATION,
-        variables: { orderId, input: { status: "CANCELLED", payment_status: "REFUNDED" } },
+        variables: { orderId, input: { status: "CANCELLED", payment_status: "REFUNDED", description: reason } },
       });
       set({ isLoading: false });
       await get().fetchOrders();

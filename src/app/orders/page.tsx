@@ -7,7 +7,7 @@ import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
-import { Search, Eye, Truck, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Search, Eye, Truck, CheckCircle, XCircle, Download, AlertTriangle } from 'lucide-react';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import { useOrdersStore, type OrderRow, type OrderStatus } from '../../store';
@@ -27,6 +27,10 @@ export default function OrdersPage() {
 
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     fetchOrders();
@@ -173,9 +177,30 @@ export default function OrdersPage() {
     await updateOrderStatus(orderId, newStatus);
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (confirm('Are you sure you want to cancel this order?')) {
-      await cancelOrder(orderId);
+  const handleCancelOrder = (orderId: string) => {
+    setOrderToCancel(orderId);
+    setShowCancelModal(true);
+    setCancelReason('');
+    setCancelError('');
+  };
+
+  const handleCancelOrderSubmit = async () => {
+    if (!orderToCancel) return;
+    
+    // Validate reason
+    if (!cancelReason.trim() || cancelReason.trim().length < 10) {
+      setCancelError('Please provide a detailed reason (at least 10 characters)');
+      return;
+    }
+
+    try {
+      await cancelOrder(orderToCancel, cancelReason.trim());
+      setShowCancelModal(false);
+      setOrderToCancel(null);
+      setCancelReason('');
+      setCancelError('');
+    } catch (error) {
+      setCancelError('Failed to cancel order. Please try again.');
     }
   };
 
@@ -368,6 +393,101 @@ export default function OrdersPage() {
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Cancel Order Modal */}
+        <Modal
+          isOpen={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          title="Cancel Order"
+          size="md"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setShowCancelModal(false)}
+              >
+                Keep Order
+              </Button>
+              <Button
+                variant="danger"
+                icon={XCircle}
+                onClick={handleCancelOrderSubmit}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Cancelling...' : 'Cancel Order'}
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {/* Warning Alert */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+              <AlertTriangle className="text-red-600 flex-shrink-0" size={20} />
+              <div>
+                <h4 className="font-semibold text-red-900">This action cannot be undone</h4>
+                <p className="text-sm text-red-700 mt-1">
+                  Cancelling this order will notify the customer via email with your provided reason.
+                  The payment status will be marked as refunded.
+                </p>
+              </div>
+            </div>
+
+            {/* Order Details */}
+            {orderToCancel && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Order Details</h4>
+                <div className="space-y-1 text-sm">
+                  {(() => {
+                    const order = orders.find(o => o.id === orderToCancel);
+                    if (!order) return null;
+                    return (
+                      <>
+                        <p className="text-gray-700">
+                          <span className="font-medium">Order Number:</span> {order.order_number}
+                        </p>
+                        <p className="text-gray-700">
+                          <span className="font-medium">Customer:</span> {order.email}
+                        </p>
+                        <p className="text-gray-700">
+                          <span className="font-medium">Total:</span> {centsToRand(order.total_cents)}
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Reason Input */}
+            <div>
+              <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-900 mb-2">
+                Cancellation Reason <span className="text-red-600">*</span>
+              </label>
+              <textarea
+                id="cancelReason"
+                rows={4}
+                className={`w-full px-4 py-3 rounded-lg border ${
+                  cancelError ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-[#C8102E]'
+                } focus:ring-2 focus:border-transparent transition-colors resize-none text-gray-900 placeholder:text-gray-400`}
+                placeholder="Please provide a detailed reason for cancelling this order. This will be sent to the customer via email."
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  setCancelError('');
+                }}
+              />
+              {cancelError && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <AlertTriangle size={14} />
+                  {cancelError}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-gray-600">
+                Minimum 10 characters. Be clear and professional - this will be sent to the customer.
+              </p>
+            </div>
+          </div>
         </Modal>
       </div>
     </DashboardLayout>

@@ -12,6 +12,7 @@ interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
   fullWidth?: boolean;
   loading?: boolean;
+  className?: string;
 }
 
 export default function Button({
@@ -24,6 +25,7 @@ export default function Button({
   type = 'button',
   fullWidth = false,
   loading = false,
+  className = '',
 }: ButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2';
   
@@ -51,7 +53,7 @@ export default function Button({
       disabled={isDisabled}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${
         isDisabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
+      } ${className}`}
     >
       {loading ? (
         <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

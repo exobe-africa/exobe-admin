@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '../../../components/layout/DashboardLayout';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, CheckCircle, XCircle, Download, Clock } from 'lucide-react';
+import Modal from '../../../components/common/Modal';
+import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, CheckCircle, XCircle, Download, Clock, AlertTriangle } from 'lucide-react';
 import { useOrdersStore, type OrderStatus } from '../../../store';
 import OrderDetailSkeleton from '../../../components/skeletons/OrderDetailSkeleton';
 
@@ -15,6 +16,9 @@ export default function OrderDetailPage() {
   const orderId = params?.id as string;
   
   const { currentOrder, isLoading, fetchOrderById, updateOrderStatus, cancelOrder } = useOrdersStore();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     if (orderId) {
@@ -55,12 +59,30 @@ export default function OrderDetailPage() {
     await fetchOrderById(currentOrder.id);
   };
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrderSubmit = async () => {
     if (!currentOrder) return;
-    if (confirm('Are you sure you want to cancel this order?')) {
-      await cancelOrder(currentOrder.id);
-      await fetchOrderById(currentOrder.id);
+    
+    // Validate reason
+    if (!cancelReason.trim() || cancelReason.trim().length < 10) {
+      setCancelError('Please provide a detailed reason (at least 10 characters)');
+      return;
     }
+
+    try {
+      await cancelOrder(currentOrder.id, cancelReason.trim());
+      await fetchOrderById(currentOrder.id);
+      setShowCancelModal(false);
+      setCancelReason('');
+      setCancelError('');
+    } catch (error) {
+      setCancelError('Failed to cancel order. Please try again.');
+    }
+  };
+
+  const handleOpenCancelModal = () => {
+    setShowCancelModal(true);
+    setCancelReason('');
+    setCancelError('');
   };
 
   if (isLoading) {
@@ -76,9 +98,11 @@ export default function OrderDetailPage() {
       <DashboardLayout>
         <div className="text-center py-12">
           <p className="text-gray-600">Order not found</p>
-          <Button onClick={() => router.push('/orders')} className="mt-4">
-            Back to Orders
-          </Button>
+          <div className="mt-4">
+            <Button onClick={() => router.push('/orders')}>
+              Back to Orders
+            </Button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -140,7 +164,7 @@ export default function OrderDetailPage() {
                     Mark as Shipped
                   </Button>
                 )}
-                <Button variant="secondary" icon={XCircle} onClick={handleCancelOrder}>
+                <Button variant="secondary" icon={XCircle} onClick={handleOpenCancelModal}>
                   Cancel Order
                 </Button>
               </div>
@@ -249,9 +273,11 @@ export default function OrderDetailPage() {
                         <div className="flex-1 pb-4">
                           <p className="font-semibold text-gray-900">{event.description || 'Status Update'}</p>
                           {event.status && (
-                            <Badge variant={statusVariant(event.status)} className="mt-2">
-                              {statusLabel(event.status)}
-                            </Badge>
+                            <div className="mt-2">
+                              <Badge variant={statusVariant(event.status)}>
+                                {statusLabel(event.status)}
+                              </Badge>
+                            </div>
                           )}
                           <p className="text-sm text-gray-600 mt-1">
                             {new Date(event.created_at).toLocaleString()}
@@ -314,18 +340,19 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
                 {(currentOrder.invoice_url || currentOrder.receipt_url) && (
-                  <Button
-                    variant="secondary"
-                    icon={Download}
-                    fullWidth
-                    className="mt-4"
-                    onClick={() => {
-                      const url = currentOrder.invoice_url || currentOrder.receipt_url;
-                      if (url) window.open(url, '_blank');
-                    }}
-                  >
-                    Download Invoice
-                  </Button>
+                  <div className="mt-4">
+                    <Button
+                      variant="secondary"
+                      icon={Download}
+                      fullWidth
+                      onClick={() => {
+                        const url = currentOrder.invoice_url || currentOrder.receipt_url;
+                        if (url) window.open(url, '_blank');
+                      }}
+                    >
+                      Download Invoice
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -410,6 +437,91 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancel Order Modal */}
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Cancel Order"
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowCancelModal(false)}
+            >
+              Keep Order
+            </Button>
+            <Button
+              variant="danger"
+              icon={XCircle}
+              onClick={handleCancelOrderSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Cancelling...' : 'Cancel Order'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Warning Alert */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+            <AlertTriangle className="text-red-600 flex-shrink-0" size={20} />
+            <div>
+              <h4 className="font-semibold text-red-900">This action cannot be undone</h4>
+              <p className="text-sm text-red-700 mt-1">
+                Cancelling this order will notify the customer via email with your provided reason.
+                The payment status will be marked as refunded.
+              </p>
+            </div>
+          </div>
+
+          {/* Order Details */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">Order Details</h4>
+            <div className="space-y-1 text-sm">
+              <p className="text-gray-700">
+                <span className="font-medium">Order Number:</span> {currentOrder?.order_number}
+              </p>
+              <p className="text-gray-700">
+                <span className="font-medium">Customer:</span> {currentOrder?.email}
+              </p>
+              <p className="text-gray-700">
+                <span className="font-medium">Total:</span> {currentOrder ? centsToRand(currentOrder.total_cents) : ''}
+              </p>
+            </div>
+          </div>
+
+          {/* Reason Input */}
+          <div>
+            <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-900 mb-2">
+              Cancellation Reason <span className="text-red-600">*</span>
+            </label>
+            <textarea
+              id="cancelReason"
+              rows={4}
+              className={`w-full px-4 py-3 rounded-lg border ${
+                cancelError ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-[#C8102E]'
+              } focus:ring-2 focus:border-transparent transition-colors resize-none text-gray-900 placeholder:text-gray-400`}
+              placeholder="Please provide a detailed reason for cancelling this order. This will be sent to the customer via email."
+              value={cancelReason}
+              onChange={(e) => {
+                setCancelReason(e.target.value);
+                setCancelError('');
+              }}
+            />
+            {cancelError && (
+              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                <AlertTriangle size={14} />
+                {cancelError}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-gray-600">
+              Minimum 10 characters. Be clear and professional - this will be sent to the customer.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 }
