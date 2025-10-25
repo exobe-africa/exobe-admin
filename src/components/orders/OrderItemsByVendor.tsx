@@ -52,7 +52,7 @@ export default function OrderItemsByVendor({
             <div className="space-y-4">
               {items.map((item) => {
                 const imageUrl = item.product_variant?.media?.[0]?.url || item.product?.media?.[0]?.url;
-                const ecommerceBase = process.env.NEXT_PUBLIC_ECOMMERCE_URL || 'https://exobe-ecommerce.vercel.app';
+                const ecommerceBase = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://exobe-ecommerce.vercel.app';
                 const productPath = item.product?.id ? `/product/${item.product.id}` : '';
                 const productUrl = productPath ? `${ecommerceBase}${productPath}` : undefined;
                 return (
