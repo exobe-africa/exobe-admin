@@ -84,6 +84,7 @@ export default function OrdersTable({ data, onView, onUpdateStatus, onCancel }: 
       data={data}
       keyExtractor={(order) => order.id}
       emptyMessage={'No orders found'}
+      onRowClick={(order) => onView(order)}
     />
   );
 }

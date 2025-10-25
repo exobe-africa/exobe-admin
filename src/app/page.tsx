@@ -180,6 +180,7 @@ export default function HomePage() {
             data={recentOrders}
             keyExtractor={(order) => order.id}
             pageSize={5}
+            onRowClick={(order) => router.push(`/orders/${order.id}`)}
           />
         </div>
       </div>
