@@ -2,6 +2,8 @@
 
 import DataTable from '../../common/DataTable';
 import { useRouter } from 'next/navigation';
+import { getApolloClient } from '../../../lib/apollo/client';
+import { VENDOR_BY_USER_ID_QUERY } from '../../../lib/api/vendors';
 import Badge from '../../common/Badge';
 import { Edit, Trash2, Eye } from 'lucide-react';
 
@@ -86,12 +88,25 @@ export default function UsersList({ users, onView, onEdit, onDelete }: UsersList
       data={users}
       keyExtractor={(user) => user.id}
       emptyMessage="No users found"
-      onRowClick={(user) => {
+      onRowClick={async (user) => {
         if (user.role === 'RETAILER' || user.role === 'WHOLESALER') {
-          router.push(`/vendors?userId=${user.id}`);
-        } else {
-          onView(user);
+          try {
+            const client = getApolloClient();
+            const { data } = await client.query({
+              query: VENDOR_BY_USER_ID_QUERY,
+              variables: { userId: user.id },
+              fetchPolicy: 'network-only',
+            });
+            const vendor = (data as any)?.vendorByUserId;
+            if (vendor?.id) {
+              router.push(`/vendors/${vendor.id}`);
+              return;
+            }
+          } catch (err) {
+            // fall back to view modal if no vendor found
+          }
         }
+        onView(user);
       }}
     />
   );
