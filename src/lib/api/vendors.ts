@@ -35,3 +35,18 @@ export const VENDOR_STATS_QUERY = gql`
   }
 `;
 
+export const VENDOR_BY_USER_ID_QUERY = gql`
+  query VendorByUserId($userId: String!) {
+    vendorByUserId(userId: $userId) {
+      id
+      name
+      slug
+      status
+      sellerType
+      created_at
+      isActive
+      _count { products }
+    }
+  }
+`;
+

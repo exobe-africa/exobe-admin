@@ -1,6 +1,7 @@
 "use client";
 
 import DataTable from '../../common/DataTable';
+import { useRouter } from 'next/navigation';
 import Badge from '../../common/Badge';
 import { Edit, Trash2, Eye } from 'lucide-react';
 
@@ -24,6 +25,7 @@ interface UsersListProps {
 }
 
 export default function UsersList({ users, onView, onEdit, onDelete }: UsersListProps) {
+  const router = useRouter();
   const columns = [
     { key: 'name', label: 'Name', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
@@ -84,6 +86,13 @@ export default function UsersList({ users, onView, onEdit, onDelete }: UsersList
       data={users}
       keyExtractor={(user) => user.id}
       emptyMessage="No users found"
+      onRowClick={(user) => {
+        if (user.role === 'RETAILER' || user.role === 'WHOLESALER') {
+          router.push(`/vendors?userId=${user.id}`);
+        } else {
+          onView(user);
+        }
+      }}
     />
   );
 }

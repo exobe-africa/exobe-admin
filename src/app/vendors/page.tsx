@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -15,6 +15,7 @@ import { Store, Search, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
 
 export default function VendorsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     vendors,
     stats,
@@ -32,6 +33,18 @@ export default function VendorsPage() {
     fetchVendors();
     fetchStats();
   }, [fetchVendors, fetchStats]);
+
+  // If navigated from Users with a userId param, try to route to that vendor's detail page
+  const userIdParam = searchParams?.get('userId');
+  const targetVendor = useMemo(() => (
+    userIdParam ? vendors.find(v => (v as any).owner_user_id === userIdParam || (v as any).account_manager_user_id === userIdParam) : null
+  ), [vendors, userIdParam]);
+
+  useEffect(() => {
+    if (userIdParam && targetVendor) {
+      router.push(`/vendors/${targetVendor.id}`);
+    }
+  }, [userIdParam, targetVendor, router]);
 
   const columns = [
     { key: 'name', label: 'Vendor Name', sortable: true },
