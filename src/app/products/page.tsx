@@ -1,91 +1,154 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
-import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { Package, Search, Edit, Trash2, Eye, Archive } from 'lucide-react';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-
-// Mock data
-const mockProducts = [
-  { id: '1', name: 'Premium Wireless Headphones', sku: 'PRD-001', category: 'Electronics', vendor: 'Tech Solutions SA', price: 'R 1,299', stock: 45, status: 'Active', sales: 124 },
-  { id: '2', name: 'Ergonomic Office Chair', sku: 'PRD-002', category: 'Furniture', vendor: 'Home & Living', price: 'R 3,499', stock: 12, status: 'Active', sales: 67 },
-  { id: '3', name: 'Smart Watch Pro', sku: 'PRD-003', category: 'Electronics', vendor: 'Tech Solutions SA', price: 'R 2,899', stock: 0, status: 'Out of Stock', sales: 89 },
-  { id: '4', name: 'Yoga Mat Premium', sku: 'PRD-004', category: 'Sports', vendor: 'Sports World', price: 'R 499', stock: 156, status: 'Active', sales: 234 },
-  { id: '5', name: 'Coffee Maker Deluxe', sku: 'PRD-005', category: 'Appliances', vendor: 'Home & Living', price: 'R 1,799', stock: 23, status: 'Active', sales: 45 },
-  { id: '6', name: 'Designer Sunglasses', sku: 'PRD-006', category: 'Fashion', vendor: 'Fashion Hub', price: 'R 899', stock: 78, status: 'Active', sales: 123 },
-  { id: '7', name: 'Bluetooth Speaker', sku: 'PRD-007', category: 'Electronics', vendor: 'Tech Solutions SA', price: 'R 699', stock: 5, status: 'Low Stock', sales: 178 },
-  { id: '8', name: 'Running Shoes', sku: 'PRD-008', category: 'Sports', vendor: 'Sports World', price: 'R 1,599', stock: 34, status: 'Active', sales: 92 },
-];
+import { Search, Eye, Edit, Trash2, Package } from 'lucide-react';
+import { useProductsStore } from '../../store';
+import ProductsListSkeleton from '../../components/skeletons/ProductsListSkeleton';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState(mockProducts);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const router = useRouter();
+  const { 
+    products, 
+    stats, 
+    categories, 
+    isLoading, 
+    filters, 
+    setFilters, 
+    fetchProducts, 
+    fetchStats,
+    fetchCategories 
+  } = useProductsStore();
+
+  useEffect(() => {
+    fetchProducts();
+    fetchStats();
+    fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function centsToRand(cents: number | null): string {
+    if (cents === null) return 'N/A';
+    const rands = cents / 100;
+    return `R ${rands.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  function statusVariant(status: string): 'success' | 'info' | 'warning' | 'danger' | 'neutral' {
+    switch (status.toUpperCase()) {
+      case 'ACTIVE': return 'success';
+      case 'DRAFT': return 'neutral';
+      case 'ARCHIVED': return 'danger';
+      default: return 'neutral';
+    }
+  }
+
+  function statusLabel(status: string): string {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  }
 
   const columns = [
-    { key: 'sku', label: 'SKU', sortable: true },
-    { key: 'name', label: 'Product Name', sortable: true },
-    { key: 'category', label: 'Category', sortable: true },
-    { key: 'vendor', label: 'Vendor', sortable: true },
-    { key: 'price', label: 'Price', sortable: true },
-    { 
-      key: 'stock', 
-      label: 'Stock',
+    {
+      key: 'title',
+      label: 'Product Name',
       sortable: true,
       render: (product: any) => (
-        <span className={`font-medium ${
-          product.stock === 0 ? 'text-red-600' :
-          product.stock < 20 ? 'text-yellow-600' :
-          'text-green-600'
-        }`}>
-          {product.stock}
-        </span>
-      )
+        <div className="flex items-center gap-2">
+          {product.media?.[0]?.url ? (
+            <img 
+              src={product.media[0].url} 
+              alt={product.title} 
+              className="w-10 h-10 object-cover rounded"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+              <Package size={16} className="text-gray-400" />
+            </div>
+          )}
+          <span className="font-medium">{product.title}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      sortable: true,
+      render: (product: any) => product.category?.name || '-',
+    },
+    {
+      key: 'vendor',
+      label: 'Vendor',
+      sortable: true,
+      render: (product: any) => product.vendor?.name || '-',
+    },
+    {
+      key: 'priceInCents',
+      label: 'Price',
+      sortable: true,
+      render: (product: any) => centsToRand(product.priceInCents),
+    },
+    {
+      key: 'stockQuantity',
+      label: 'Stock',
+      sortable: true,
+      render: (product: any) => {
+        const stock = product.stockQuantity;
+        const color = stock === 0 ? 'text-red-600' : stock < 10 ? 'text-yellow-600' : 'text-gray-900';
+        return <span className={color}>{stock}</span>;
+      },
     },
     {
       key: 'status',
-      label: 'Status',
-      render: (product: any) => (
-        <Badge variant={
-          product.status === 'Active' ? 'success' :
-          product.status === 'Low Stock' ? 'warning' :
-          'danger'
-        }>
-          {product.status}
-        </Badge>
-      ),
+      label: 'STATUS',
+      render: (product: any) => {
+        const isActive = product.isActive && product.status === 'ACTIVE';
+        return (
+          <Badge variant={isActive ? 'success' : statusVariant(product.status)}>
+            {isActive ? 'Active' : statusLabel(product.status)}
+          </Badge>
+        );
+      },
     },
-    { key: 'sales', label: 'Sales', sortable: true },
+    {
+      key: 'sales',
+      label: 'Sales',
+      sortable: true,
+      render: () => '-', // Placeholder
+    },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'ACTIONS',
       render: (product: any) => (
         <div className="flex items-center gap-2">
           <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // View action
+            }}
             className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
             title="View"
           >
             <Eye size={16} />
           </button>
           <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Edit action
+            }}
             className="p-2 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-colors"
             title="Edit"
           >
             <Edit size={16} />
           </button>
           <button
-            className="p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
-            title="Archive"
-          >
-            <Archive size={16} />
-          </button>
-          <button
-            onClick={() => handleDeleteProduct(product.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Delete action
+            }}
             className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
             title="Delete"
           >
@@ -96,22 +159,17 @@ export default function ProductsPage() {
     },
   ];
 
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(p => p.id !== productId));
-    }
-  };
+  const filteredProducts = useMemo(() => {
+    return products;
+  }, [products]);
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !filterCategory || product.category === filterCategory;
-    const matchesStatus = !filterStatus || product.status === filterStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
-
-  const categories = Array.from(new Set(products.map(p => p.category)));
-  const statuses = Array.from(new Set(products.map(p => p.status)));
+  if (isLoading && products.length === 0) {
+    return (
+      <DashboardLayout>
+        <ProductsListSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -124,62 +182,67 @@ export default function ProductsPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-1">
               <Input
                 placeholder="Search by product name or SKU..."
-                value={searchQuery}
-                onChange={setSearchQuery}
+                value={filters.searchQuery || ''}
+                onChange={(v) => {
+                  setFilters({ searchQuery: v });
+                  fetchProducts();
+                }}
                 icon={Search}
                 fullWidth
               />
             </div>
             <Select
               placeholder="Filter by category"
-              value={filterCategory}
-              onChange={setFilterCategory}
+              value={filters.categoryId || ''}
+              onChange={(v) => {
+                setFilters({ categoryId: v });
+                fetchProducts();
+              }}
               options={[
                 { value: '', label: 'All Categories' },
-                ...categories.map(cat => ({ value: cat, label: cat }))
+                ...categories.map(cat => ({ value: cat.id, label: cat.name }))
               ]}
               fullWidth
             />
             <Select
               placeholder="Filter by status"
-              value={filterStatus}
-              onChange={setFilterStatus}
+              value={filters.status || ''}
+              onChange={(v) => {
+                setFilters({ status: v });
+                fetchProducts();
+              }}
               options={[
                 { value: '', label: 'All Statuses' },
-                ...statuses.map(status => ({ value: status, label: status }))
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'DRAFT', label: 'Draft' },
+                { value: 'ARCHIVED', label: 'Archived' },
               ]}
               fullWidth
             />
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Total Products</p>
-            <p className="text-2xl font-bold text-gray-900">{products.length}</p>
+            <p className="text-2xl font-bold text-gray-900">{stats?.total || products.length}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Active</p>
-            <p className="text-2xl font-bold text-green-600">
-              {products.filter(p => p.status === 'Active').length}
-            </p>
+            <p className="text-2xl font-bold text-green-600">{stats?.active || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Low Stock</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {products.filter(p => p.status === 'Low Stock' || (p.stock > 0 && p.stock < 20)).length}
-            </p>
+            <p className="text-2xl font-bold text-yellow-600">{stats?.lowStock || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Out of Stock</p>
-            <p className="text-2xl font-bold text-red-600">
-              {products.filter(p => p.stock === 0).length}
-            </p>
+            <p className="text-2xl font-bold text-red-600">{stats?.outOfStock || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Categories</p>
@@ -192,10 +255,9 @@ export default function ProductsPage() {
           columns={columns}
           data={filteredProducts}
           keyExtractor={(product) => product.id}
-          emptyMessage="No products found"
+          emptyMessage={isLoading ? 'Loading products...' : 'No products found'}
         />
       </div>
     </DashboardLayout>
   );
 }
-

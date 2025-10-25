@@ -15,3 +15,6 @@ export type { OrderRow, OrderFilters, OrderStatus, OrderDetail, OrderDetailItem 
 export { useDashboardStore } from './dashboard';
 export type { DashboardStats, RecentOrder } from './dashboard';
 
+export { useProductsStore } from './products';
+export type { ProductRow, ProductStats, ProductFilters, Category } from './products';
+
