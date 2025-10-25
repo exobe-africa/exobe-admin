@@ -237,8 +237,8 @@ export default function ProductsPage() {
             <p className="text-2xl font-bold text-green-600">{stats?.active || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Low Stock</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats?.lowStock || 0}</p>
+            <p className="text-sm text-gray-600 mb-1">Draft</p>
+            <p className="text-2xl font-bold text-yellow-600">{stats?.draft || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Out of Stock</p>
@@ -246,7 +246,7 @@ export default function ProductsPage() {
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Categories</p>
-            <p className="text-2xl font-bold text-blue-600">{categories.length}</p>
+            <p className="text-2xl font-bold text-blue-600">{stats?.categoriesTotal ?? categories.length}</p>
           </div>
         </div>
 

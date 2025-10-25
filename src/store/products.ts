@@ -36,8 +36,12 @@ export interface ProductRow {
 export interface ProductStats {
   total: number;
   active: number;
-  lowStock: number;
+  draft: number;
   outOfStock: number;
+  categoriesTotal?: number;
+  categoriesActive?: number;
+  categoriesInactive?: number;
+  categoriesDraft?: number;
 }
 
 export interface Category {
@@ -137,11 +141,17 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   async fetchCategories() {
     try {
       const client = getApolloClient();
-      const { data } = await client.query<{ categories: Category[] }>({
+      // Pull categories dynamically from products returned by productsList
+      const { data } = await client.query<{ productsList: { category: Category | null }[] }>({
         query: CATEGORIES_LIST_QUERY,
+        variables: { status: undefined },
         fetchPolicy: 'network-only',
       });
-      set({ categories: data?.categories || [] });
+      const unique = new Map<string, Category>();
+      (data?.productsList || []).forEach((p) => {
+        if (p.category) unique.set(p.category.id, p.category);
+      });
+      set({ categories: Array.from(unique.values()) });
     } catch (err: any) {
       console.error('Failed to fetch categories:', err);
     }

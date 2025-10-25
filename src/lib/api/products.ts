@@ -38,18 +38,20 @@ export const PRODUCT_STATS_QUERY = gql`
     productStats {
       total
       active
-      lowStock
+      draft
       outOfStock
+      categoriesTotal
+      categoriesActive
+      categoriesInactive
+      categoriesDraft
     }
   }
 `;
 
 export const CATEGORIES_LIST_QUERY = gql`
-  query Categories {
-    categories {
-      id
-      name
-      slug
+  query ProductCategories($status: String) {
+    productsList(status: $status, take: 500) {
+      category { id name slug }
     }
   }
 `;
