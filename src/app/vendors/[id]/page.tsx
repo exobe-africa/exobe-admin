@@ -9,6 +9,7 @@ import VendorStatsCards from '../../../components/vendors/VendorStatsCards';
 import VendorBusinessInfo from '../../../components/vendors/VendorBusinessInfo';
 import VendorProductsList from '../../../components/vendors/VendorProductsList';
 import { VendorContact, VendorAddress } from '../../../components/vendors/VendorContactAddress';
+import VendorUserInfo from '../../../components/vendors/VendorUserInfo';
 import { useVendorDetailStore } from '../../../store/vendorDetail';
 import { Mail, Phone } from 'lucide-react';
 import Image from 'next/image';
@@ -104,6 +105,11 @@ export default function VendorDetailPage() {
               products={vendor.products as any}
               onEditProduct={(id) => router.push(`/products/${id}/edit`)}
             />
+
+            {/* User & Application Information */}
+            {vendor.owner_user_id && (
+              <VendorUserInfo userId={vendor.owner_user_id} />
+            )}
           </div>
 
           {/* Right Column */}

@@ -47,6 +47,7 @@ interface VendorDetail {
   sellerType: string;
   created_at: string;
   isActive: boolean;
+  owner_user_id?: string;
   _count: {
     products: number;
   };

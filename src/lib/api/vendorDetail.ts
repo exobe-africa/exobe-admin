@@ -18,6 +18,7 @@ export const VENDOR_BY_ID_QUERY = gql`
       sellerType
       created_at
       isActive
+      owner_user_id
       _count {
         products
       }
