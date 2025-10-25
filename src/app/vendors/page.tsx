@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
-import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
+import VendorsFilters from '../../components/vendors/VendorsFilters';
+import VendorsStats from '../../components/vendors/VendorsStats';
+import VendorsTable from '../../components/vendors/VendorsTable';
 import VendorsListSkeleton from '../../components/skeletons/VendorsListSkeleton';
 import { useVendorsStore } from '../../store/vendors';
 import { Store, Search, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
@@ -46,74 +46,7 @@ export default function VendorsPage() {
     }
   }, [userIdParam, targetVendor, router]);
 
-  const columns = [
-    { key: 'name', label: 'Vendor Name', sortable: true },
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'location', label: 'Location', sortable: true },
-    { key: 'products', label: 'Products', sortable: true },
-    {
-      key: 'status',
-      label: 'STATUS',
-      render: (vendor: any) => (
-        <Badge variant={
-          vendor.status === 'ACTIVE' ? 'success' :
-          vendor.status === 'PENDING' ? 'warning' :
-          'danger'
-        }>
-          {vendor.status}
-        </Badge>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'ACTIONS',
-      render: (vendor: any) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleViewVendor(vendor)}
-            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-            title="View"
-          >
-            <Eye size={16} />
-          </button>
-          {vendor.status === 'PENDING' && (
-            <>
-              <button
-                onClick={() => handleApproveVendor(vendor.id)}
-                className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                title="Approve"
-              >
-                <CheckCircle size={16} />
-              </button>
-              <button
-                onClick={() => handleRejectVendor(vendor.id)}
-                className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                title="Reject"
-              >
-                <XCircle size={16} />
-              </button>
-            </>
-          )}
-          {vendor.status === 'ACTIVE' && (
-            <button
-              onClick={() => handleSuspendVendor(vendor.id)}
-              className="p-2 rounded-lg hover:bg-orange-50 text-orange-600 transition-colors"
-              title="Suspend"
-            >
-              <XCircle size={16} />
-            </button>
-          )}
-          <button
-            onClick={() => handleDeleteVendor(vendor.id)}
-            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-            title="Delete"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      ),
-    },
-  ];
+  // handlers kept in page
 
   const handleViewVendor = (vendor: any) => {
     setSelectedVendor(vendor);
@@ -171,62 +104,22 @@ export default function VendorsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                placeholder="Search by vendor name or email..."
-                value={filters.searchQuery}
-                onChange={(value) => setFilters({ searchQuery: value })}
-                icon={Search}
-                fullWidth
-              />
-            </div>
-            <Select
-              placeholder="Filter by status"
-              value={filters.status}
-              onChange={(value) => setFilters({ status: value })}
-              options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'ACTIVE', label: 'Active' },
-                { value: 'PENDING', label: 'Pending' },
-                { value: 'SUSPENDED', label: 'Suspended' },
-              ]}
-              fullWidth
-            />
-          </div>
-        </div>
+        <VendorsFilters filters={filters} onChange={setFilters} />
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Total Vendors</p>
-            <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Active Vendors</p>
-            <p className="text-2xl font-bold text-green-600">{stats?.active || 0}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Pending Approval</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats?.pending || 0}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-600 mb-1">Total Products</p>
-            <p className="text-2xl font-bold text-blue-600">{stats?.totalProducts || 0}</p>
-          </div>
-        </div>
+        <VendorsStats stats={stats} />
 
         {/* Vendors Table */}
-        <DataTable
-          columns={columns}
-          data={filteredVendors}
-          keyExtractor={(vendor) => vendor.id}
-          emptyMessage="No vendors found"
+        <VendorsTable
+          vendors={filteredVendors as any}
+          onView={handleViewVendor}
+          onApprove={handleApproveVendor}
+          onReject={handleRejectVendor}
+          onSuspend={handleSuspendVendor}
+          onDelete={handleDeleteVendor}
           onRowClick={(vendor) => router.push(`/vendors/${vendor.id}`)}
         />
 
-        {/* View Vendor Modal */}
         <Modal
           isOpen={isViewModalOpen}
           onClose={() => {
