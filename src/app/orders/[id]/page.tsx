@@ -6,9 +6,15 @@ import DashboardLayout from '../../../components/layout/DashboardLayout';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import Modal from '../../../components/common/Modal';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, CheckCircle, XCircle, Download, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Truck, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useOrdersStore, type OrderStatus } from '../../../store';
 import OrderDetailSkeleton from '../../../components/skeletons/OrderDetailSkeleton';
+import OrderQuickActions from '../../../components/orders/OrderQuickActions';
+import OrderItemsByVendor from '../../../components/orders/OrderItemsByVendor';
+import OrderTimeline from '../../../components/orders/OrderTimeline';
+import OrderSummaryCard from '../../../components/orders/OrderSummaryCard';
+import OrderCustomerCard from '../../../components/orders/OrderCustomerCard';
+import OrderAddressCard from '../../../components/orders/OrderAddressCard';
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -145,303 +151,31 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        {(String(currentOrder.status).toUpperCase() === 'PENDING' || String(currentOrder.status).toUpperCase() === 'PROCESSING' || String(currentOrder.status).toUpperCase() === 'SHIPPED') && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-blue-900">Quick Actions</h3>
-                <p className="text-sm text-blue-700 mt-1">Update this order's status</p>
-              </div>
-              <div className="flex gap-2">
-                {String(currentOrder.status).toUpperCase() === 'PENDING' && (
-                  <Button icon={CheckCircle} onClick={() => handleUpdateStatus('PROCESSING')}>
-                    Process Order
-                  </Button>
-                )}
-                {String(currentOrder.status).toUpperCase() === 'PROCESSING' && (
-                  <Button icon={Truck} onClick={() => handleUpdateStatus('SHIPPED')}>
-                    Mark as Shipped
-                  </Button>
-                )}
-                {String(currentOrder.status).toUpperCase() === 'SHIPPED' && (
-                  <Button icon={CheckCircle} onClick={() => handleUpdateStatus('FULFILLED')}>
-                    Mark as Delivered
-                  </Button>
-                )}
-                <Button variant="secondary" icon={XCircle} onClick={handleOpenCancelModal}>
-                  Cancel Order
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <OrderQuickActions
+          status={currentOrder.status}
+          onProcess={() => handleUpdateStatus('PROCESSING')}
+          onShip={() => handleUpdateStatus('SHIPPED')}
+          onDeliver={() => handleUpdateStatus('FULFILLED')}
+          onCancel={handleOpenCancelModal}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Products by Vendor */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <Package className="text-[#C8102E]" size={20} />
-                  <h2 className="text-xl font-bold text-gray-900">Order Items</h2>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {Object.entries(vendorGroups).map(([vendorId, { name, items }]) => (
-                  <div key={vendorId} className="p-6">
-                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
-                      <div className="w-10 h-10 rounded-full bg-[#C8102E] flex items-center justify-center text-white font-bold">
-                        {name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{name}</p>
-                        <p className="text-sm text-gray-600">{items.length} item{items.length !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
+            <OrderItemsByVendor vendorGroups={vendorGroups} />
 
-                    <div className="space-y-4">
-                      {items.map((item) => {
-                        const imageUrl = item.product_variant?.media?.[0]?.url || item.product?.media?.[0]?.url;
-                        const ecommerceBase = process.env.NEXT_PUBLIC_ECOMMERCE_URL || process.env.NEXT_PUBLIC_ECOMMERCE || 'https://exobe-ecommerce.vercel.app';
-                        const productPath = item.product?.id ? `/product/${item.product.id}` : '';
-                        const productUrl = productPath ? `${ecommerceBase}${productPath}` : undefined;
-                        return (
-                          <div key={item.id} className="flex gap-4">
-                            <div className="w-20 h-20 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                              {imageUrl ? (
-                                productUrl ? (
-                                  <a href={productUrl} target="_blank" rel="noopener noreferrer">
-                                    <img src={imageUrl} alt={item.title} className="w-full h-full object-cover" />
-                                  </a>
-                                ) : (
-                                  <img src={imageUrl} alt={item.title} className="w-full h-full object-cover" />
-                                )
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Package size={24} className="text-gray-400" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              {productUrl ? (
-                                <a href={productUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-900 truncate hover:underline">
-                                  {item.product?.title || item.title}
-                                </a>
-                              ) : (
-                                <h4 className="font-semibold text-gray-900 truncate">{item.product?.title || item.title}</h4>
-                              )}
-                              <p className="text-sm text-gray-600 mt-1">
-                                {item.product_variant?.title || 'Default Variant'}
-                              </p>
-                              {item.product?.category && (
-                                <p className="text-xs text-gray-500 mt-1">Category: {item.product.category.name}</p>
-                              )}
-                              {Object.keys(item.attributes || {}).length > 0 && (
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {Object.entries(item.attributes).map(([key, value]) => (
-                                    <span key={key} className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">
-                                      {key}: {String(value)}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">{centsToRand(item.price_cents)}</p>
-                              <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
-                              <p className="text-sm font-semibold text-[#C8102E] mt-2">{centsToRand(item.total_cents)}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {currentOrder.events && currentOrder.events.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Clock className="text-[#C8102E]" size={20} />
-                    <h2 className="text-xl font-bold text-gray-900">Order Timeline</h2>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {currentOrder.events.map((event, index) => (
-                      <div key={event.id} className="flex gap-4">
-                        <div className="relative">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Clock size={16} className="text-blue-600" />
-                          </div>
-                          {index < currentOrder.events!.length - 1 && (
-                            <div className="absolute left-1/2 top-10 w-0.5 h-full bg-gray-200 -ml-px"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <p className="font-semibold text-gray-900">{event.description || 'Status Update'}</p>
-                          {event.status && (
-                            <div className="mt-2">
-                              <Badge variant={statusVariant(event.status)}>
-                                {statusLabel(event.status)}
-                              </Badge>
-                            </div>
-                          )}
-                          <p className="text-sm text-gray-600 mt-1">
-                            {new Date(event.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <OrderTimeline events={currentOrder.events || []} />
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900">Order Summary</h2>
-              </div>
-              <div className="p-6 space-y-3">
-                <div className="flex justify-between text-gray-700">
-                  <span>Subtotal</span>
-                  <span>{centsToRand(currentOrder.subtotal_cents)}</span>
-                </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>Shipping</span>
-                  <span>{centsToRand(currentOrder.shipping_cents)}</span>
-                </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>VAT</span>
-                  <span>{centsToRand(currentOrder.vat_cents)}</span>
-                </div>
-                {currentOrder.discounts && currentOrder.discounts.length > 0 && (
-                  <>
-                    {currentOrder.discounts.map((discount) => (
-                      <div key={discount.id} className="flex justify-between text-green-600">
-                        <span className="flex items-center gap-1">
-                          Discount
-                          {discount.code && <span className="text-xs">({discount.code})</span>}
-                        </span>
-                        <span>-{centsToRand(discount.amount_cents)}</span>
-                      </div>
-                    ))}
-                  </>
-                )}
-                {currentOrder.gift_card_code && (
-                  <div className="flex justify-between text-green-600">
-                    <span className="flex items-center gap-1">
-                      Gift Card
-                      <span className="text-xs">({currentOrder.gift_card_code})</span>
-                    </span>
-                    <span>-{centsToRand(currentOrder.gift_card_amount_cents || 0)}</span>
-                  </div>
-                )}
-                <div className="border-t pt-3">
-                  <div className="flex justify-between text-lg font-bold text-gray-900">
-                    <span>Total</span>
-                    <span className="text-[#C8102E]">{centsToRand(currentOrder.total_cents)}</span>
-                  </div>
-                </div>
-                {(currentOrder.invoice_url || currentOrder.receipt_url) && (
-                  <div className="mt-4">
-                    <Button
-                      variant="secondary"
-                      icon={Download}
-                      fullWidth
-                      onClick={() => {
-                        const url = currentOrder.invoice_url || currentOrder.receipt_url;
-                        if (url) window.open(url, '_blank');
-                      }}
-                    >
-                      Download Invoice
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <OrderSummaryCard order={currentOrder} />
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <User className="text-[#C8102E]" size={20} />
-                  <h2 className="text-xl font-bold text-gray-900">Customer</h2>
-                </div>
-              </div>
-              <div className="p-6 space-y-3">
-                {currentOrder.customer?.first_name && currentOrder.customer?.last_name && (
-                  <div>
-                    <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium text-gray-900">
-                      {currentOrder.customer.first_name} {currentOrder.customer.last_name}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium text-gray-900">{currentOrder.email}</p>
-                </div>
-                {(currentOrder.customer?.phone || currentOrder.customer?.mobile) && (
-                  <div>
-                    <p className="text-sm text-gray-600">Phone</p>
-                    <p className="font-medium text-gray-900">
-                      {currentOrder.customer.phone || currentOrder.customer.mobile}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <OrderCustomerCard order={currentOrder} />
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <MapPin className="text-[#C8102E]" size={20} />
-                  <h2 className="text-xl font-bold text-gray-900">Shipping Address</h2>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-1 text-gray-900">
-                  {currentOrder.shipping_address.street && <p>{currentOrder.shipping_address.street}</p>}
-                  {currentOrder.shipping_address.suburb && <p>{currentOrder.shipping_address.suburb}</p>}
-                  <p>
-                    {currentOrder.shipping_address.city}
-                    {currentOrder.shipping_address.province && `, ${currentOrder.shipping_address.province}`}
-                  </p>
-                  {currentOrder.shipping_address.postal_code && <p>{currentOrder.shipping_address.postal_code}</p>}
-                  {currentOrder.shipping_address.country && <p>{currentOrder.shipping_address.country}</p>}
-                </div>
-              </div>
-            </div>
+            <OrderAddressCard title="Shipping Address" icon="shipping" address={currentOrder.shipping_address} />
 
             {currentOrder.billing_address && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="text-[#C8102E]" size={20} />
-                    <h2 className="text-xl font-bold text-gray-900">Billing Address</h2>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-1 text-gray-900">
-                    {currentOrder.billing_address.street && <p>{currentOrder.billing_address.street}</p>}
-                    {currentOrder.billing_address.suburb && <p>{currentOrder.billing_address.suburb}</p>}
-                    <p>
-                      {currentOrder.billing_address.city}
-                      {currentOrder.billing_address.province && `, ${currentOrder.billing_address.province}`}
-                    </p>
-                    {currentOrder.billing_address.postal_code && <p>{currentOrder.billing_address.postal_code}</p>}
-                    {currentOrder.billing_address.country && <p>{currentOrder.billing_address.country}</p>}
-                  </div>
-                </div>
-              </div>
+              <OrderAddressCard title="Billing Address" icon="billing" address={currentOrder.billing_address} />
             )}
           </div>
         </div>
@@ -472,7 +206,6 @@ export default function OrderDetailPage() {
         }
       >
         <div className="space-y-4">
-          {/* Warning Alert */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
             <AlertTriangle className="text-red-600 flex-shrink-0" size={20} />
             <div>
@@ -484,7 +217,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Order Details */}
           <div className="bg-gray-50 rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 mb-2">Order Details</h4>
             <div className="space-y-1 text-sm">
@@ -500,7 +232,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Reason Input */}
           <div>
             <label htmlFor="cancelReason" className="block text-sm font-medium text-gray-900 mb-2">
               Cancellation Reason <span className="text-red-600">*</span>
