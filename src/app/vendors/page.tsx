@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -13,6 +14,7 @@ import { useVendorsStore } from '../../store/vendors';
 import { Store, Search, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
 
 export default function VendorsPage() {
+  const router = useRouter();
   const {
     vendors,
     stats,
@@ -208,6 +210,7 @@ export default function VendorsPage() {
           data={filteredVendors}
           keyExtractor={(vendor) => vendor.id}
           emptyMessage="No vendors found"
+          onRowClick={(vendor) => router.push(`/vendors/${vendor.id}`)}
         />
 
         {/* View Vendor Modal */}

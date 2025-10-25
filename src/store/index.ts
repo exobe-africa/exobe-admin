@@ -23,3 +23,6 @@ export { useAdminProductsStore } from './adminProducts';
 export { useVendorsStore } from './vendors';
 export type { VendorRow, VendorStats, VendorFilters } from './vendors';
 
+export { useVendorDetailStore } from './vendorDetail';
+export type { VendorDetail, VendorProduct } from './vendorDetail';
+
