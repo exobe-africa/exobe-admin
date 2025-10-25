@@ -12,3 +12,6 @@ export { useSettingsStore } from './settings';
 export { useOrdersStore } from './orders';
 export type { OrderRow, OrderFilters, OrderStatus, OrderDetail, OrderDetailItem } from './orders';
 
+export { useDashboardStore } from './dashboard';
+export type { DashboardStats, RecentOrder } from './dashboard';
+

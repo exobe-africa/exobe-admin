@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useAdmin } from '../context/AdminContext';
 import StatCard from '../components/common/StatCard';
 import DataTable from '../components/common/DataTable';
+import Badge from '../components/common/Badge';
 import { 
   Users, 
   Store, 
@@ -12,53 +15,82 @@ import {
   TrendingUp,
   DollarSign
 } from 'lucide-react';
-
-// Mock data for demonstration
-const recentOrders = [
-  { id: 'ORD-001', customer: 'John Doe', product: 'Premium Headphones', amount: 'R 1,299', status: 'Completed', date: '2025-10-10' },
-  { id: 'ORD-002', customer: 'Jane Smith', product: 'Wireless Mouse', amount: 'R 499', status: 'Processing', date: '2025-10-10' },
-  { id: 'ORD-003', customer: 'Mike Johnson', product: 'Laptop Stand', amount: 'R 899', status: 'Pending', date: '2025-10-09' },
-  { id: 'ORD-004', customer: 'Sarah Williams', product: 'USB-C Hub', amount: 'R 649', status: 'Completed', date: '2025-10-09' },
-  { id: 'ORD-005', customer: 'Tom Brown', product: 'Mechanical Keyboard', amount: 'R 1,799', status: 'Completed', date: '2025-10-08' },
-];
-
-const topProducts = [
-  { id: '1', name: 'Premium Headphones', category: 'Electronics', sales: 124, revenue: 'R 161,076' },
-  { id: '2', name: 'Wireless Mouse', category: 'Accessories', sales: 98, revenue: 'R 48,902' },
-  { id: '3', name: 'Laptop Stand', category: 'Office', sales: 87, revenue: 'R 78,213' },
-  { id: '4', name: 'USB-C Hub', category: 'Electronics', sales: 76, revenue: 'R 49,324' },
-  { id: '5', name: 'Mechanical Keyboard', category: 'Accessories', sales: 65, revenue: 'R 116,935' },
-];
+import { useDashboardStore } from '../store';
+import DashboardSkeleton from '../components/skeletons/DashboardSkeleton';
 
 export default function HomePage() {
   const { admin } = useAdmin();
+  const router = useRouter();
+  const { stats, recentOrders, isLoading, fetchDashboardData } = useDashboardStore();
+
+  useEffect(() => {
+    fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function centsToRand(cents: number): string {
+    const rands = (cents || 0) / 100;
+    return `R ${rands.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  function formatNumber(num: number): string {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K`;
+    }
+    return num.toLocaleString();
+  }
+
   const orderColumns = [
-    { key: 'id', label: 'Order ID', sortable: true },
+    { key: 'order_number', label: 'Order #', sortable: true },
     { key: 'customer', label: 'Customer', sortable: true },
-    { key: 'product', label: 'Product', sortable: true },
-    { key: 'amount', label: 'Amount', sortable: true },
-    { 
-      key: 'status', 
-      label: 'Status',
-      render: (order: any) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          order.status === 'Completed' ? 'bg-green-100 text-green-800' :
-          order.status === 'Processing' ? 'bg-blue-100 text-blue-800' :
-          'bg-yellow-100 text-yellow-800'
-        }`}>
-          {order.status}
-        </span>
-      )
+    {
+      key: 'amount_cents',
+      label: 'Total',
+      sortable: true,
+      render: (order: any) => centsToRand(order.amount_cents),
     },
-    { key: 'date', label: 'Date', sortable: true },
+    {
+      key: 'items_count',
+      label: 'Items',
+      sortable: true,
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (order: any) => {
+        const status = String(order.status || '').toUpperCase();
+        const variant = status === 'FULFILLED' ? 'success' :
+                       status === 'SHIPPED' ? 'info' :
+                       status === 'PROCESSING' ? 'warning' :
+                       status === 'CANCELLED' ? 'danger' : 'neutral';
+        const label = status === 'FULFILLED' ? 'Delivered' :
+                     status === 'SHIPPED' ? 'Shipped' :
+                     status === 'PROCESSING' ? 'Processing' :
+                     status === 'CANCELLED' ? 'Cancelled' : 'Pending';
+        return <Badge variant={variant}>{label}</Badge>;
+      },
+    },
+    {
+      key: 'payment_status',
+      label: 'PAYMENT',
+      render: (order: any) => {
+        const ps = String(order.payment_status || '').toUpperCase();
+        const variant = ps === 'PAID' ? 'success' : ps === 'REFUNDED' ? 'warning' : 'warning';
+        const label = ps.charAt(0) + ps.slice(1).toLowerCase();
+        return <Badge variant={variant}>{label}</Badge>;
+      },
+    },
   ];
 
-  const productColumns = [
-    { key: 'name', label: 'Product Name', sortable: true },
-    { key: 'category', label: 'Category', sortable: true },
-    { key: 'sales', label: 'Sales', sortable: true },
-    { key: 'revenue', label: 'Revenue', sortable: true },
-  ];
+  if (isLoading && !stats) {
+    return (
+      <DashboardLayout>
+        <DashboardSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -71,44 +103,44 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
           <StatCard
             title="Total Users"
-            value="12,543"
+            value={formatNumber(stats?.totalUsers || 0)}
             icon={Users}
-            trend={{ value: 12.5, isPositive: true }}
+            trend={{ value: stats?.usersTrend || 0, isPositive: (stats?.usersTrend || 0) >= 0 }}
             color="blue"
           />
           <StatCard
             title="Active Vendors"
-            value="234"
+            value={formatNumber(stats?.activeVendors || 0)}
             icon={Store}
-            trend={{ value: 8.2, isPositive: true }}
+            trend={{ value: stats?.vendorsTrend || 0, isPositive: (stats?.vendorsTrend || 0) >= 0 }}
             color="purple"
           />
           <StatCard
             title="Total Products"
-            value="8,432"
+            value={formatNumber(stats?.totalProducts || 0)}
             icon={Package}
-            trend={{ value: 15.3, isPositive: true }}
+            trend={{ value: stats?.productsTrend || 0, isPositive: (stats?.productsTrend || 0) >= 0 }}
             color="green"
           />
           <StatCard
             title="Total Orders"
-            value="3,567"
+            value={formatNumber(stats?.totalOrders || 0)}
             icon={ShoppingCart}
-            trend={{ value: 5.1, isPositive: false }}
+            trend={{ value: stats?.ordersTrend || 0, isPositive: (stats?.ordersTrend || 0) >= 0 }}
             color="orange"
           />
           <StatCard
             title="Revenue"
-            value="R 2.4M"
+            value={centsToRand(stats?.revenueCents || 0)}
             icon={DollarSign}
-            trend={{ value: 18.7, isPositive: true }}
+            trend={{ value: stats?.revenueTrend || 0, isPositive: (stats?.revenueTrend || 0) >= 0 }}
             color="green"
           />
           <StatCard
             title="Growth Rate"
-            value="23.5%"
+            value={`${(stats?.growthRate || 0).toFixed(1)}%`}
             icon={TrendingUp}
-            trend={{ value: 3.2, isPositive: true }}
+            trend={{ value: stats?.growthRate || 0, isPositive: (stats?.growthRate || 0) >= 0 }}
             color="red"
           />
         </div>
@@ -136,7 +168,10 @@ export default function HomePage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
-            <button className="text-[#C8102E] hover:text-[#a00d25] font-medium text-sm">
+            <button 
+              onClick={() => router.push('/orders')}
+              className="text-[#C8102E] hover:text-[#a00d25] font-medium text-sm"
+            >
               View All →
             </button>
           </div>
@@ -144,22 +179,6 @@ export default function HomePage() {
             columns={orderColumns}
             data={recentOrders}
             keyExtractor={(order) => order.id}
-            pageSize={5}
-          />
-        </div>
-
-        {/* Top Products */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Top Selling Products</h2>
-            <button className="text-[#C8102E] hover:text-[#a00d25] font-medium text-sm">
-              View All →
-            </button>
-          </div>
-          <DataTable
-            columns={productColumns}
-            data={topProducts}
-            keyExtractor={(product) => product.id}
             pageSize={5}
           />
         </div>
