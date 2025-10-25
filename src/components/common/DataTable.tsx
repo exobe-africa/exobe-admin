@@ -17,6 +17,7 @@ interface DataTableProps<T> {
   keyExtractor: (item: T) => string;
   emptyMessage?: string;
   pageSize?: number;
+  onRowClick?: (item: T) => void;
 }
 
 export default function DataTable<T>({
@@ -25,6 +26,7 @@ export default function DataTable<T>({
   keyExtractor,
   emptyMessage = 'No data available',
   pageSize = 10,
+  onRowClick,
 }: DataTableProps<T>) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -95,7 +97,11 @@ export default function DataTable<T>({
               </tr>
             ) : (
               paginatedData.map((item) => (
-                <tr key={keyExtractor(item)} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={keyExtractor(item)}
+                  className={`hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={() => onRowClick && onRowClick(item)}
+                >
                   {columns.map((column) => (
                     <td
                       key={column.key}

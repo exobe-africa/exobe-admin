@@ -255,6 +255,7 @@ export default function ProductsPage() {
           columns={columns}
           data={filteredProducts}
           keyExtractor={(product) => product.id}
+          onRowClick={(product) => router.push(`/products/${product.id}/edit`)}
           emptyMessage={isLoading ? 'Loading products...' : 'No products found'}
         />
       </div>

@@ -18,3 +18,8 @@ export type { DashboardStats, RecentOrder } from './dashboard';
 export { useProductsStore } from './products';
 export type { ProductRow, ProductStats, ProductFilters, Category } from './products';
 
+export { useAdminProductsStore } from './adminProducts';
+
+export { useVendorsStore } from './vendors';
+export type { VendorRow, VendorStats, VendorFilters } from './vendors';
+

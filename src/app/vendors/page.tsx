@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import DataTable from '../../components/common/DataTable';
 import Button from '../../components/common/Button';
@@ -8,37 +8,41 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import Badge from '../../components/common/Badge';
-import { Store, Mail, Phone, MapPin, Edit, Trash2, Eye, Search, CheckCircle, XCircle } from 'lucide-react';
-
-// Mock data
-const mockVendors = [
-  { id: '1', name: 'Tech Solutions SA', email: 'info@techsolutions.co.za', phone: '+27 11 234 5678', location: 'Johannesburg', products: 145, revenue: 'R 1,234,567', status: 'Active', rating: 4.8, joinDate: '2024-06-15' },
-  { id: '2', name: 'Fashion Hub', email: 'contact@fashionhub.co.za', phone: '+27 21 345 6789', location: 'Cape Town', products: 89, revenue: 'R 876,543', status: 'Active', rating: 4.6, joinDate: '2024-07-20' },
-  { id: '3', name: 'Home & Living', email: 'hello@homeliving.co.za', phone: '+27 31 456 7890', location: 'Durban', products: 234, revenue: 'R 2,345,678', status: 'Active', rating: 4.9, joinDate: '2024-05-10' },
-  { id: '4', name: 'Sports World', email: 'info@sportsworld.co.za', phone: '+27 12 567 8901', location: 'Pretoria', products: 67, revenue: 'R 567,890', status: 'Pending', rating: 4.3, joinDate: '2025-09-05' },
-  { id: '5', name: 'Beauty Box', email: 'support@beautybox.co.za', phone: '+27 41 678 9012', location: 'Port Elizabeth', products: 123, revenue: 'R 987,654', status: 'Suspended', rating: 3.8, joinDate: '2024-08-12' },
-];
+import VendorsListSkeleton from '../../components/skeletons/VendorsListSkeleton';
+import { useVendorsStore } from '../../store/vendors';
+import { Store, Search, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
 
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState(mockVendors);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const {
+    vendors,
+    stats,
+    filters,
+    isLoading,
+    setFilters,
+    fetchVendors,
+    fetchStats,
+  } = useVendorsStore();
+
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
+
+  useEffect(() => {
+    fetchVendors();
+    fetchStats();
+  }, [fetchVendors, fetchStats]);
 
   const columns = [
     { key: 'name', label: 'Vendor Name', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'location', label: 'Location', sortable: true },
     { key: 'products', label: 'Products', sortable: true },
-    { key: 'revenue', label: 'Revenue', sortable: true },
     {
       key: 'status',
-      label: 'Status',
+      label: 'STATUS',
       render: (vendor: any) => (
         <Badge variant={
-          vendor.status === 'Active' ? 'success' :
-          vendor.status === 'Pending' ? 'warning' :
+          vendor.status === 'ACTIVE' ? 'success' :
+          vendor.status === 'PENDING' ? 'warning' :
           'danger'
         }>
           {vendor.status}
@@ -46,18 +50,8 @@ export default function VendorsPage() {
       ),
     },
     {
-      key: 'rating',
-      label: 'Rating',
-      render: (vendor: any) => (
-        <div className="flex items-center gap-1">
-          <span className="text-yellow-500">★</span>
-          <span className="font-medium">{vendor.rating}</span>
-        </div>
-      ),
-    },
-    {
       key: 'actions',
-      label: 'Actions',
+      label: 'ACTIONS',
       render: (vendor: any) => (
         <div className="flex items-center gap-2">
           <button
@@ -67,7 +61,7 @@ export default function VendorsPage() {
           >
             <Eye size={16} />
           </button>
-          {vendor.status === 'Pending' && (
+          {vendor.status === 'PENDING' && (
             <>
               <button
                 onClick={() => handleApproveVendor(vendor.id)}
@@ -85,7 +79,7 @@ export default function VendorsPage() {
               </button>
             </>
           )}
-          {vendor.status === 'Active' && (
+          {vendor.status === 'ACTIVE' && (
             <button
               onClick={() => handleSuspendVendor(vendor.id)}
               className="p-2 rounded-lg hover:bg-orange-50 text-orange-600 transition-colors"
@@ -112,33 +106,45 @@ export default function VendorsPage() {
   };
 
   const handleApproveVendor = (vendorId: string) => {
-    setVendors(vendors.map(v => v.id === vendorId ? { ...v, status: 'Active' } : v));
+    // TODO: Implement approve mutation
+    console.log('Approve vendor:', vendorId);
   };
 
   const handleRejectVendor = (vendorId: string) => {
     if (confirm('Are you sure you want to reject this vendor application?')) {
-      setVendors(vendors.filter(v => v.id !== vendorId));
+      // TODO: Implement reject mutation
+      console.log('Reject vendor:', vendorId);
     }
   };
 
   const handleSuspendVendor = (vendorId: string) => {
     if (confirm('Are you sure you want to suspend this vendor?')) {
-      setVendors(vendors.map(v => v.id === vendorId ? { ...v, status: 'Suspended' } : v));
+      // TODO: Implement suspend mutation
+      console.log('Suspend vendor:', vendorId);
     }
   };
 
   const handleDeleteVendor = (vendorId: string) => {
     if (confirm('Are you sure you want to delete this vendor? This action cannot be undone.')) {
-      setVendors(vendors.filter(v => v.id !== vendorId));
+      // TODO: Implement delete mutation
+      console.log('Delete vendor:', vendorId);
     }
   };
 
   const filteredVendors = vendors.filter(vendor => {
-    const matchesSearch = vendor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         vendor.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = !filterStatus || vendor.status === filterStatus;
+    const matchesSearch = vendor.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+                         vendor.email.toLowerCase().includes(filters.searchQuery.toLowerCase());
+    const matchesStatus = !filters.status || vendor.status === filters.status;
     return matchesSearch && matchesStatus;
   });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <VendorsListSkeleton />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -155,21 +161,21 @@ export default function VendorsPage() {
             <div className="md:col-span-2">
               <Input
                 placeholder="Search by vendor name or email..."
-                value={searchQuery}
-                onChange={setSearchQuery}
+                value={filters.searchQuery}
+                onChange={(value) => setFilters({ searchQuery: value })}
                 icon={Search}
                 fullWidth
               />
             </div>
             <Select
               placeholder="Filter by status"
-              value={filterStatus}
-              onChange={setFilterStatus}
+              value={filters.status}
+              onChange={(value) => setFilters({ status: value })}
               options={[
                 { value: '', label: 'All Statuses' },
-                { value: 'Active', label: 'Active' },
-                { value: 'Pending', label: 'Pending' },
-                { value: 'Suspended', label: 'Suspended' },
+                { value: 'ACTIVE', label: 'Active' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'SUSPENDED', label: 'Suspended' },
               ]}
               fullWidth
             />
@@ -180,25 +186,19 @@ export default function VendorsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Total Vendors</p>
-            <p className="text-2xl font-bold text-gray-900">{vendors.length}</p>
+            <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Active Vendors</p>
-            <p className="text-2xl font-bold text-green-600">
-              {vendors.filter(v => v.status === 'Active').length}
-            </p>
+            <p className="text-2xl font-bold text-green-600">{stats?.active || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Pending Approval</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {vendors.filter(v => v.status === 'Pending').length}
-            </p>
+            <p className="text-2xl font-bold text-yellow-600">{stats?.pending || 0}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-600 mb-1">Total Products</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {vendors.reduce((sum, v) => sum + v.products, 0)}
-            </p>
+            <p className="text-2xl font-bold text-blue-600">{stats?.totalProducts || 0}</p>
           </div>
         </div>
 
@@ -230,16 +230,12 @@ export default function VendorsPage() {
                   <h3 className="text-2xl font-bold text-gray-900">{selectedVendor.name}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant={
-                      selectedVendor.status === 'Active' ? 'success' :
-                      selectedVendor.status === 'Pending' ? 'warning' :
+                      selectedVendor.status === 'ACTIVE' ? 'success' :
+                      selectedVendor.status === 'PENDING' ? 'warning' :
                       'danger'
                     }>
                       {selectedVendor.status}
                     </Badge>
-                    <div className="flex items-center gap-1">
-                      <span className="text-yellow-500">★</span>
-                      <span className="font-medium">{selectedVendor.rating}</span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -251,30 +247,22 @@ export default function VendorsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Phone</p>
-                  <p className="font-medium text-gray-900">{selectedVendor.phone}</p>
+                  <p className="font-medium text-gray-900">{selectedVendor.phone || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Location</p>
                   <p className="font-medium text-gray-900">{selectedVendor.location}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Join Date</p>
-                  <p className="font-medium text-gray-900">{selectedVendor.joinDate}</p>
-                </div>
-                <div>
                   <p className="text-sm text-gray-600 mb-1">Total Products</p>
                   <p className="font-medium text-gray-900">{selectedVendor.products}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                  <p className="font-medium text-gray-900">{selectedVendor.revenue}</p>
                 </div>
               </div>
 
               <div className="border-t pt-4">
                 <h4 className="font-bold text-gray-900 mb-3">Quick Actions</h4>
                 <div className="flex gap-2">
-                  {selectedVendor.status === 'Pending' && (
+                  {selectedVendor.status === 'PENDING' && (
                     <>
                       <Button icon={CheckCircle} onClick={() => {
                         handleApproveVendor(selectedVendor.id);
@@ -290,7 +278,7 @@ export default function VendorsPage() {
                       </Button>
                     </>
                   )}
-                  {selectedVendor.status === 'Active' && (
+                  {selectedVendor.status === 'ACTIVE' && (
                     <Button variant="secondary" icon={XCircle} onClick={() => {
                       handleSuspendVendor(selectedVendor.id);
                       setIsViewModalOpen(false);
@@ -307,4 +295,3 @@ export default function VendorsPage() {
     </DashboardLayout>
   );
 }
-
