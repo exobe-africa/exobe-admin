@@ -100,7 +100,6 @@ export const useAuthStore = create<AuthState>()(
             credentials: "include",
           });
         } catch (_) {
-          // Ignore logout errors
         }
         set({ user: null, isAuthenticated: false, error: null });
       },
@@ -116,11 +115,13 @@ export const useAuthStore = create<AuthState>()(
           const user = (data as any)?.me ?? null;
 
           if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+            const existingToken = get().user?.token ?? null;
             const adminUser: AdminUser = {
               id: user.id,
               email: user.email,
               name: user.name,
               role: user.role,
+              token: existingToken,
               permissions: ['all'],
             };
             set({ user: adminUser, isAuthenticated: true });
