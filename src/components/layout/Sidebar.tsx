@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,22 +17,41 @@ import {
   Bell,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  UserCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { useAdmin } from '../../context/AdminContext';
 
-interface NavItem {
+interface SubNavItem {
   label: string;
   icon: React.ReactNode;
   href: string;
+}
+
+interface NavItem {
+  label: string;
+  icon: React.ReactNode;
+  href?: string;
   badge?: number;
+  subItems?: SubNavItem[];
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: <LayoutDashboard size={20} />, href: '/' },
-  { label: 'Users', icon: <Users size={20} />, href: '/users' },
-  { label: 'Vendors', icon: <Store size={20} />, href: '/vendors' },
+  { 
+    label: 'Users', 
+    icon: <Users size={20} />,
+    subItems: [
+      { label: 'All Users', icon: <Users size={18} />, href: '/users' },
+      { label: 'Vendors', icon: <Store size={18} />, href: '/users/vendors' },
+      { label: 'Customers', icon: <UserCircle size={18} />, href: '/users/customers' },
+      { label: 'Staff', icon: <ShieldCheck size={18} />, href: '/users/staff' },
+    ]
+  },
   { label: 'Products', icon: <Package size={20} />, href: '/products' },
   { label: 'Orders', icon: <ShoppingCart size={20} />, href: '/orders' },
   { label: 'Analytics', icon: <BarChart3 size={20} />, href: '/analytics' },
@@ -46,6 +66,13 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useUI();
   const { admin, logout } = useAdmin();
+  const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
+    Users: true,
+  });
+
+  const toggleAccordion = (label: string) => {
+    setOpenAccordions(prev => ({ ...prev, [label]: !prev[label] }));
+  };
 
   return (
     <aside
@@ -105,11 +132,60 @@ export default function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-6">
           <ul className="space-y-1 px-3">
             {navItems.map((item) => {
+              if (item.subItems) {
+                const isOpen = openAccordions[item.label];
+                const isAnySubActive = item.subItems.some(sub => pathname === sub.href);
+                
+                return (
+                  <li key={item.label}>
+                    <button
+                      onClick={() => !isSidebarCollapsed && toggleAccordion(item.label)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
+                        isAnySubActive
+                          ? 'bg-[#2a2a2a] text-white'
+                          : 'text-gray-300 hover:bg-[#2a2a2a] hover:text-white'
+                      } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                    >
+                      <span className="flex-shrink-0">{item.icon}</span>
+                      {!isSidebarCollapsed && (
+                        <>
+                          <span className="font-medium flex-1 text-left">{item.label}</span>
+                          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </>
+                      )}
+                    </button>
+                    
+                    {!isSidebarCollapsed && isOpen && (
+                      <ul className="mt-1 space-y-1 ml-3">
+                        {item.subItems.map((subItem) => {
+                          const isSubActive = pathname === subItem.href;
+                          return (
+                            <li key={subItem.href}>
+                              <Link
+                                href={subItem.href}
+                                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                                  isSubActive
+                                    ? 'bg-[#C8102E] text-white'
+                                    : 'text-gray-400 hover:bg-[#2a2a2a] hover:text-white'
+                                }`}
+                              >
+                                <span className="flex-shrink-0">{subItem.icon}</span>
+                                <span className="text-sm font-medium">{subItem.label}</span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              }
+              
               const isActive = pathname === item.href;
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={item.href!}
                     className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${
                       isActive
                         ? 'bg-[#C8102E] text-white'

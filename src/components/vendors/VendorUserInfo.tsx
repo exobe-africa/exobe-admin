@@ -307,7 +307,6 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
         </div>
       </AccordionSection>
 
-      {/* Physical Stores & Distribution */}
       <AccordionSection title="Physical Stores & Distribution" sectionKey="stores">
         <div className="grid grid-cols-2 gap-6">
           <div>
@@ -361,7 +360,6 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
         </div>
       </AccordionSection>
 
-      {/* Products & Inventory */}
       <AccordionSection title="Products & Inventory" sectionKey="products">
         <div className="grid grid-cols-2 gap-6">
           <div>
@@ -399,7 +397,6 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
         )}
       </AccordionSection>
 
-      {/* Online Presence */}
       <AccordionSection title="Online Presence" sectionKey="online">
         <div className="grid grid-cols-2 gap-6">
           {application.website && (
