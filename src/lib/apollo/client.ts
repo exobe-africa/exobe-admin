@@ -107,6 +107,13 @@ function createApolloClient() {
           if (admin) token = JSON.parse(admin)?.token ?? null;
         } catch (_) {}
       }
+
+      if (!token) {
+        try {
+          const match = document.cookie.match(/(?:^|; )exobeAdminToken=([^;]*)/);
+          if (match && match[1]) token = decodeURIComponent(match[1]);
+        } catch (_) {}
+      }
     }
 
     return {
