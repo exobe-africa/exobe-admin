@@ -5,6 +5,7 @@ import { setContext } from "@apollo/client/link/context";
 import { onError } from "@apollo/client/link/error";
 import { Observable } from "@apollo/client/utilities";
 import { REFRESH_MUTATION } from "../api/auth";
+import { useAuthStore } from "../../store/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/graphql";
 
@@ -23,6 +24,21 @@ const addPendingRequest = (cb: () => void) => pendingRequests.push(cb);
 const resolvePendingRequests = () => {
   pendingRequests.forEach((cb) => cb());
   pendingRequests = [];
+};
+
+let hasScheduledAuthRedirect = false;
+const redirectToLogin = async () => {
+  if (typeof window === 'undefined') return;
+  if (hasScheduledAuthRedirect) return;
+  hasScheduledAuthRedirect = true;
+  try {
+    try {
+      await useAuthStore.getState().logout();
+    } catch (_) {}
+    window.location.href = '/auth/login';
+  } finally {
+    setTimeout(() => { hasScheduledAuthRedirect = false; }, 3000);
+  }
 };
 
 function createApolloClient() {
@@ -65,12 +81,14 @@ function createApolloClient() {
                 complete: observer.complete.bind(observer),
               });
             } else {
+              void redirectToLogin();
               observer.error(new Error("Unauthorized"));
             }
           })
           .catch((e) => {
             isRefreshing = false;
             pendingRequests = [];
+            void redirectToLogin();
             observer.error(e);
           });
       });
