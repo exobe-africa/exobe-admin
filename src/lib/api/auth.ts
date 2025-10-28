@@ -49,3 +49,9 @@ export const UPDATE_MY_PROFILE = gql`
   }
 `;
 
+export const REFRESH_MUTATION = gql`
+  mutation Refresh {
+    refresh
+  }
+`;
+

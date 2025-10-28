@@ -108,13 +108,13 @@ export const useAuthStore = create<AuthState>()(
       async fetchMe() {
         try {
           const client = getApolloClient();
-          const { data } = await client.query({ 
-            query: ME_QUERY, 
-            fetchPolicy: "no-cache" 
+          const { data } = await client.query({
+            query: ME_QUERY,
+            fetchPolicy: "no-cache",
           });
-          
+
           const user = (data as any)?.me ?? null;
-          
+
           if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
             const adminUser: AdminUser = {
               id: user.id,
@@ -125,11 +125,12 @@ export const useAuthStore = create<AuthState>()(
             };
             set({ user: adminUser, isAuthenticated: true });
           } else {
-            set({ user: null, isAuthenticated: false });
+            // Do not hard logout automatically; mark unauthenticated but keep existing user until explicit logout
+            set({ isAuthenticated: false });
           }
-        } catch (err) {
-          // If not authenticated or invalid, clear state
-          set({ user: null, isAuthenticated: false });
+        } catch (_) {
+          // Avoid clearing local auth state on transient/401 errors; the Apollo link will try refresh
+          set({ isAuthenticated: false });
         }
       },
 

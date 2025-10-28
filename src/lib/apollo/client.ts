@@ -3,32 +3,82 @@
 import { ApolloClient, HttpLink, InMemoryCache, from } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import { onError } from "@apollo/client/link/error";
+import { Observable } from "@apollo/client/utilities";
+import { REFRESH_MUTATION } from "../api/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/graphql";
 
+type ApolloErrorResponse = {
+  graphQLErrors?: Array<{ message?: string }>;
+  networkError?: unknown;
+  operation: any;
+  forward: any;
+};
+
 let apolloClient: ApolloClient | null = null;
 
+let isRefreshing = false;
+let pendingRequests: Array<() => void> = [];
+const addPendingRequest = (cb: () => void) => pendingRequests.push(cb);
+const resolvePendingRequests = () => {
+  pendingRequests.forEach((cb) => cb());
+  pendingRequests = [];
+};
+
 function createApolloClient() {
-  const errorLink = onError((err) => {
-    const graphQLErrors = (err as any).graphQLErrors as { message?: string }[] | undefined;
-    const networkError = (err as any).networkError as unknown;
-    if (graphQLErrors) {
-      for (const e of graphQLErrors) {
-        if (typeof window !== "undefined" && e?.message && /unauthorized|forbidden/i.test(e.message)) {
-          // Handle auth errors
-          try {
-            fetch(API_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ query: "mutation{ logout }" }),
-              credentials: "include",
+  const errorLink = onError(({ graphQLErrors, networkError, operation, forward }: ApolloErrorResponse) => {
+    const isAuthError = graphQLErrors?.some((e: any) => {
+      const msg = (e as any)?.message || "";
+      return /unauthorized|forbidden/i.test(msg);
+    });
+
+    if (isAuthError) {
+      if (isRefreshing) {
+        return new Observable((observer) => {
+          addPendingRequest(() => {
+            forward(operation).subscribe({
+              next: observer.next.bind(observer),
+              error: observer.error.bind(observer),
+              complete: observer.complete.bind(observer),
             });
-          } catch (_) {}
-        }
+          });
+        });
       }
+
+      isRefreshing = true;
+      return new Observable((observer) => {
+        fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: "mutation Refresh { refresh }" }),
+          credentials: "include",
+        })
+          .then((res) => res.json())
+          .then((json) => {
+            const ok = json?.data?.refresh === true;
+            isRefreshing = false;
+            if (ok) {
+              resolvePendingRequests();
+              forward(operation).subscribe({
+                next: observer.next.bind(observer),
+                error: observer.error.bind(observer),
+                complete: observer.complete.bind(observer),
+              });
+            } else {
+              observer.error(new Error("Unauthorized"));
+            }
+          })
+          .catch((e) => {
+            isRefreshing = false;
+            pendingRequests = [];
+            observer.error(e);
+          });
+      });
     }
+
     if (networkError) {
-      console.error('Network error:', networkError);
+      // Do not log the user out on network blips
+      console.error("Network error:", networkError);
     }
   });
 
