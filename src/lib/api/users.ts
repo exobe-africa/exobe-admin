@@ -14,4 +14,8 @@ export const ADMIN_USERS_QUERY = gql`
   }
 `;
 
-
+export const ADMIN_RESET_USER_PASSWORD = gql`
+  mutation AdminResetUserPassword($userId: String!, $newPassword: String!, $sendEmail: Boolean!) {
+    adminResetUserPassword(userId: $userId, newPassword: $newPassword, sendEmail: $sendEmail)
+  }
+`;

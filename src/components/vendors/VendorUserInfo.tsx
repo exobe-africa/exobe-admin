@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { getApolloClient } from '../../lib/apollo/client';
 import { USER_BY_ID_QUERY, APPLICATION_BY_EMAIL_QUERY } from '../../lib/api/userVendor';
+import { ADMIN_RESET_USER_PASSWORD } from '../../lib/api/users';
 import Button from '../common/Button';
-import Input from '../common/Input';
 import Badge from '../common/Badge';
-import { Edit2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
+import ResetPasswordModal from '../pages/users/ResetPasswordModal';
+import { useToast } from '../../context/ToastContext';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface VendorUserInfoProps {
   userId: string;
@@ -20,8 +22,9 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
   const [isEditingApp, setIsEditingApp] = useState(false);
   const [userForm, setUserForm] = useState<any>({});
   const [appForm, setAppForm] = useState<any>({});
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const { showSuccess } = useToast();
   
-  // Accordion states
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     personal: true,
     business: false,
@@ -63,9 +66,7 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
             setApplication(appData.applicationByEmail);
             setAppForm(appData.applicationByEmail);
           }
-        } catch (_) {
-          // Application not found is OK
-        }
+        } catch (_) {}
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -100,16 +101,38 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
     setIsEditingApp(false);
   };
 
+  const handleResetPassword = async (userId: string, newPassword: string, sendEmail: boolean) => {
+    try {
+      const client = getApolloClient();
+      await client.mutate({
+        mutation: ADMIN_RESET_USER_PASSWORD,
+        variables: {
+          userId,
+          newPassword,
+          sendEmail,
+        },
+      });
+      
+      showSuccess(`Password reset successful${sendEmail ? ' - Email sent to user' : ''}`);
+      setIsResetPasswordModalOpen(false);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      throw new Error(error.message || 'Failed to reset password');
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
-        <div className="space-y-4">
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
+      <>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+          <div className="space-y-4">
+            <div className="h-12 bg-gray-200 rounded"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -180,17 +203,29 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{application.business_name}</h2>
-          <p className="text-gray-600">{application.email}</p>
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{application.business_name}</h2>
+            <p className="text-gray-600">{application.email}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {user && user.role !== 'SUPER_ADMIN' && (
+              <Button
+                onClick={() => setIsResetPasswordModalOpen(true)}
+                variant="secondary"
+                size="sm"
+              >
+                Reset Password
+              </Button>
+            )}
+            <Badge variant={application.status === 'APPROVED' ? 'success' : application.status === 'PENDING' ? 'warning' : 'danger'}>
+              {application.status}
+            </Badge>
+          </div>
         </div>
-        <Badge variant={application.status === 'APPROVED' ? 'success' : application.status === 'PENDING' ? 'warning' : 'danger'}>
-          {application.status}
-        </Badge>
-      </div>
 
       {/* Personal Information */}
       <AccordionSection title="Personal Information" sectionKey="personal">
@@ -419,5 +454,20 @@ export default function VendorUserInfo({ userId }: VendorUserInfoProps) {
         </div>
       </AccordionSection>
     </div>
+
+    {user && (
+      <ResetPasswordModal
+        isOpen={isResetPasswordModalOpen}
+        user={{
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        }}
+        onClose={() => setIsResetPasswordModalOpen(false)}
+        onReset={handleResetPassword}
+      />
+    )}
+    </>
   );
 }

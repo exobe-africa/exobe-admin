@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getApolloClient } from '../../../lib/apollo/client';
 import { VENDOR_BY_USER_ID_QUERY } from '../../../lib/api/vendors';
 import Badge from '../../common/Badge';
-import { Edit, Trash2, Eye } from 'lucide-react';
+import { Edit, Trash2, Eye, KeyRound } from 'lucide-react';
 
 type Role = 'ADMIN' | 'SUPER_ADMIN' | 'CUSTOMER' | 'RETAILER' | 'WHOLESALER' | 'SERVICE_PROVIDER';
 
@@ -24,9 +24,10 @@ interface UsersListProps {
   onView: (user: UserRow) => void;
   onEdit: (user: UserRow) => void;
   onDelete: (userId: string) => void;
+  onResetPassword: (user: UserRow) => void;
 }
 
-export default function UsersList({ users, onView, onEdit, onDelete }: UsersListProps) {
+export default function UsersList({ users, onView, onEdit, onDelete, onResetPassword }: UsersListProps) {
   const router = useRouter();
   const columns = [
     { key: 'name', label: 'Name', sortable: true },
@@ -55,7 +56,7 @@ export default function UsersList({ users, onView, onEdit, onDelete }: UsersList
       key: 'actions',
       label: 'Actions',
       render: (user: UserRow) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onView(user)}
             className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
@@ -70,6 +71,15 @@ export default function UsersList({ users, onView, onEdit, onDelete }: UsersList
           >
             <Edit size={16} />
           </button>
+          {user.role !== 'SUPER_ADMIN' && (
+            <button
+              onClick={() => onResetPassword(user)}
+              className="p-2 rounded-lg hover:bg-purple-50 text-purple-600 transition-colors"
+              title="Reset Password"
+            >
+              <KeyRound size={16} />
+            </button>
+          )}
           <button
             onClick={() => onDelete(user.id)}
             className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"

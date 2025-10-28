@@ -7,4 +7,5 @@ export { default as ApplicationsFilters } from './ApplicationsFilters';
 export { default as AddEditUserModal } from './AddEditUserModal';
 export { default as ViewUserModal } from './ViewUserModal';
 export { default as ApplicationDetailsModal } from './ApplicationDetailsModal';
+export { default as ResetPasswordModal } from './ResetPasswordModal';
 

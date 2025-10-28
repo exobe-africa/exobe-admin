@@ -17,15 +17,19 @@ import {
   AddEditUserModal,
   ViewUserModal,
   ApplicationDetailsModal,
+  ResetPasswordModal,
 } from '../../components/pages/users';
 import { RejectionModal } from '../../components/pages/applications';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import TableSkeleton from '../../components/common/TableSkeleton';
+import { getApolloClient } from '../../lib/apollo/client';
+import { ADMIN_RESET_USER_PASSWORD } from '../../lib/api/users';
 
 export default function UsersPage() {
   const [activeTab, setActiveTab] = useState<'users' | 'applications'>('users');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isEditingApplication, setIsEditingApplication] = useState(false);
   const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
   const [approveTargetId, setApproveTargetId] = useState<string | null>(null);
@@ -134,6 +138,36 @@ export default function UsersPage() {
     if (confirm('Are you sure you want to delete this user?')) {
       deleteUser(userId);
       showSuccess('User deleted successfully');
+    }
+  };
+
+  const handleResetPassword = (user: UserRow) => {
+    if (user.role === 'SUPER_ADMIN') {
+      showError('Cannot reset password for SUPER_ADMIN users');
+      return;
+    }
+    setSelectedUser(user);
+    setIsResetPasswordModalOpen(true);
+  };
+
+  const handleResetPasswordSubmit = async (userId: string, newPassword: string, sendEmail: boolean) => {
+    try {
+      const client = getApolloClient();
+      await client.mutate({
+        mutation: ADMIN_RESET_USER_PASSWORD,
+        variables: {
+          userId,
+          newPassword,
+          sendEmail,
+        },
+      });
+      
+      showSuccess(`Password reset successful${sendEmail ? ' - Email sent to user' : ''}`);
+      setIsResetPasswordModalOpen(false);
+      setSelectedUser(null);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      throw new Error(error.message || 'Failed to reset password');
     }
   };
 
@@ -359,6 +393,7 @@ export default function UsersPage() {
               onView={handleViewUser}
               onEdit={handleEditUser}
               onDelete={handleDeleteUser}
+              onResetPassword={handleResetPassword}
             />
           )
         ) : (
@@ -397,6 +432,17 @@ export default function UsersPage() {
             onClose={handleCloseViewModal}
           />
         )}
+
+        {/* Reset Password Modal */}
+        <ResetPasswordModal
+          isOpen={isResetPasswordModalOpen}
+          user={selectedUser}
+          onClose={() => {
+            setIsResetPasswordModalOpen(false);
+            setSelectedUser(null);
+          }}
+          onReset={handleResetPasswordSubmit}
+        />
 
         {selectedApplication && editedApplication && (
           <ApplicationDetailsModal
