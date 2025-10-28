@@ -4,7 +4,6 @@ import { ApolloClient, HttpLink, InMemoryCache, from } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import { onError } from "@apollo/client/link/error";
 import { Observable } from "@apollo/client/utilities";
-import { REFRESH_MUTATION } from "../api/auth";
 import { useAuthStore } from "../../store/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/graphql";
