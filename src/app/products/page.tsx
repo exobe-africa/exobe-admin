@@ -7,7 +7,7 @@ import DataTable from '../../components/common/DataTable';
 import Badge from '../../components/common/Badge';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
-import { Search, Eye, Edit, Trash2, Package } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, Package, ExternalLink } from 'lucide-react';
 import { useProductsStore } from '../../store';
 import ProductsListSkeleton from '../../components/skeletons/ProductsListSkeleton';
 
@@ -124,6 +124,17 @@ export default function ProductsPage() {
       label: 'ACTIONS',
       render: (product: any) => (
         <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3001';
+              window.open(`${frontendUrl}/product/${product.id}`, '_blank');
+            }}
+            className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+            title="Open in Store (New Tab)"
+          >
+            <ExternalLink size={16} />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
